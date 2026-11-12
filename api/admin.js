@@ -1,4 +1,4 @@
-import { DOMAIN, allowedEmail, appUrl, createLinkToken, linkEmail, normEmail, sendMail } from './_auth.js';
+import { DOMAIN, allowedEmail, normEmail, sendLinkEmail, smtpDiagnose } from './_auth.js';
 import { clean, freeSlug, pool, getLesson, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
 
 const isHttp = (u) => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u) && u.length <= 1000;
@@ -194,10 +194,10 @@ export default async function handler(req, res) {
                        on conflict (lower(email)) do update set name = case when participantes.password_hash is null then excluded.name else participantes.name end
                        returning id, name, email, password_hash is not null as "hasPassword"`, [name, email]);
       }
-      const token = await createLinkToken(p.id, p.hasPassword ? 'redefinir' : 'primeiro');
-      const base = appUrl(req), link = `${base}/#/senha/${token}`;
-      await sendMail({ to: p.email, ...linkEmail({ name: p.name, link, purpose: p.hasPassword ? 'redefinir' : 'primeiro', base }) });
-      return res.status(200).json({ ...(await results()), sentTo: p.email, ...(process.env.DEV_EMAIL_LINKS === '1' ? { devLink: link } : {}) });
+      const extra = await sendLinkEmail(req, p, p.hasPassword ? 'redefinir' : 'primeiro');
+      return res.status(200).json({ ...(await results()), sentTo: p.email, ...extra });
+    } else if (action === 'smtpTest') {
+      return res.status(200).json(await smtpDiagnose());
     } else if (action === 'deleteParticipant') {
       if (!isUuid(item.id)) return res.status(400).json({ error: 'Participante inválido.' });
       await q(`delete from public.participantes where id = $1`, [item.id]);
@@ -208,6 +208,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ treinamentos: await listTrainings() });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : 'Erro ao salvar: ' + e.message });
+    res.status(e.status || 500).json({ error: e.status ? e.message + (e.detail ? ` (${String(e.detail).slice(0, 200)})` : '') : 'Erro ao salvar: ' + e.message });
   }
 }

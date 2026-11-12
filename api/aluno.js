@@ -1,7 +1,6 @@
 import { clean, getLesson, isUuid, listTrainings, publicLesson, q, readJson } from './_lib.js';
 import {
-  DOMAIN, MIN_PASSWORD, allowedEmail, appUrl, consumeLink, createLinkToken, endSession, linkEmail, linkInfo, login,
-  normEmail, sendMail, sessionParticipant,
+  DOMAIN, MIN_PASSWORD, allowedEmail, consumeLink, endSession, linkInfo, login, normEmail, sendLinkEmail, sessionParticipant,
 } from './_auth.js';
 
 const domainError = () => `Use seu e-mail corporativo @${DOMAIN}.`;
@@ -15,15 +14,6 @@ async function content(p) {
     `select aula_id as "aulaId", max(score)::int as best, count(*)::int as tries, bool_or(passed) as passed, max(created_at) as "lastAt"
        from public.tentativas where participante_id = $1 group by aula_id`, [p.id]);
   return { participante: p, treinamentos: trainings, conclusoes: done, quizzes: attempts };
-}
-
-// Gera o link de uso único e manda por e-mail
-async function sendLink(req, p, purpose) {
-  const token = await createLinkToken(p.id, purpose);
-  const base = appUrl(req);
-  const link = `${base}/#/senha/${token}`;
-  await sendMail({ to: p.email, ...linkEmail({ name: p.name, link, purpose, base }) });
-  return process.env.DEV_EMAIL_LINKS === '1' ? { devLink: link } : {};
 }
 
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -60,7 +50,7 @@ export default async function handler(req, res) {
         [p] = await q(`update public.participantes set name = $2 where id = $1 returning id, name, email, false as "hasPassword"`, [p.id, clean(body.name, 120)]);
       }
       // "esqueci" para e-mail sem conta: mesma resposta, sem revelar quem está cadastrado
-      const extra = p ? await sendLink(req, p, p.hasPassword ? 'redefinir' : 'primeiro') : {};
+      const extra = p ? await sendLinkEmail(req, p, p.hasPassword ? 'redefinir' : 'primeiro') : {};
       return res.status(200).json({
         ok: true,
         message: action === 'primeiroAcesso' && !p.hasPassword

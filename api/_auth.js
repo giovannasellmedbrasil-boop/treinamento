@@ -99,20 +99,63 @@ export async function login(email, password) {
 // Sem SMTP configurado: em produção dá erro claro; no servidor local (DEV_EMAIL_LINKS=1) o link aparece no terminal.
 export const mailConfigured = () => !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
+const smtpPorts = () => {
+  const first = Number(process.env.SMTP_PORT) || 587;
+  return [first, ...[465, 587].filter((x) => x !== first)]; // a configurada primeiro; a outra como reserva
+};
+const transport = (nodemailer, port) => nodemailer.createTransport({
+  host: process.env.SMTP_HOST, port, secure: port === 465,
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 30000,
+});
+// Erros em que vale tentar a outra porta (servidor não ofereceu login, conexão recusada ou demorou)
+const retryable = (e) => /not advertised|AUTH is required|ECONNREFUSED|ETIMEDOUT|ESOCKET|ECONNECTION|Greeting never received/i.test(`${e.code} ${e.message} ${e.response || ''}`);
+
 export async function sendMail({ to, subject, html, text }) {
   if (!mailConfigured()) {
     if (process.env.DEV_EMAIL_LINKS === '1') { console.log(`\n[e-mail simulado] para ${to}: ${subject}\n${text}\n`); return; }
     throw Object.assign(new Error('O envio de e-mails da plataforma ainda não foi configurado. Avise o administrador.'), { status: 503 });
   }
   const { default: nodemailer } = await import('nodemailer');
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const t = nodemailer.createTransport({
-    host: process.env.SMTP_HOST, port, secure: port === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    forceAuth: true, // o servidor da Sellmed nem sempre anuncia AUTH para IPs de fora; sem isso o envio é recusado (550)
-    connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 30000,
-  });
-  await t.sendMail({ from: process.env.SMTP_FROM || `Treinamentos Sellmed <${process.env.SMTP_USER}>`, to, subject, html, text });
+  const from = process.env.SMTP_FROM || `Treinamentos Sellmed <${process.env.SMTP_USER}>`;
+  let lastErr;
+  for (const port of smtpPorts()) {
+    try { await transport(nodemailer, port).sendMail({ from, to, subject, html, text }); return { port }; }
+    catch (e) { lastErr = e; console.error(`SMTP porta ${port}:`, e.code || '', e.response || e.message); if (!retryable(e)) break; }
+  }
+  throw Object.assign(new Error('Não foi possível enviar o e-mail agora. Tente de novo em alguns minutos ou avise o administrador.'), { status: 502, detail: lastErr?.response || lastErr?.message });
+}
+
+// Diagnóstico para o painel: em cada porta, conecta e mostra se o servidor oferece login (não envia nada)
+export async function smtpDiagnose() {
+  if (!mailConfigured()) return { configured: false };
+  const { default: SMTPConnection } = await import('nodemailer/lib/smtp-connection/index.js');
+  const out = [];
+  for (const port of smtpPorts()) {
+    const c = new SMTPConnection({ host: process.env.SMTP_HOST, port, secure: port === 465, connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 15000 });
+    const r = { port };
+    try {
+      await new Promise((ok, fail) => { c.once('error', fail); c.connect(ok); });
+      r.banner = String(c._greeting || c.lastServerResponse || '').slice(0, 120);
+      r.offersAuth = c.allowsAuth; r.authMethods = c._supportedAuth;
+      if (c.allowsAuth) {
+        await new Promise((ok, fail) => c.login({ user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }, (e) => e ? fail(e) : ok()));
+        r.login = 'ok';
+      }
+    } catch (e) { r.error = `${e.code || ''} ${e.response || e.message}`.trim().slice(0, 200); }
+    try { c.quit(); } catch {}
+    out.push(r);
+  }
+  return { configured: true, host: process.env.SMTP_HOST, user: process.env.SMTP_USER, ports: out };
+}
+
+// Cria o link de uso único e manda por e-mail; se o envio falhar, o link é descartado (não gasta o limite por hora)
+export async function sendLinkEmail(req, p, purpose) {
+  const token = await createLinkToken(p.id, purpose);
+  const base = appUrl(req), link = `${base}/#/senha/${token}`;
+  try { await sendMail({ to: p.email, ...linkEmail({ name: p.name, link, purpose, base }) }); }
+  catch (e) { await q(`delete from public.auth_tokens where token_hash = $1`, [sha(token)]); throw e; }
+  return process.env.DEV_EMAIL_LINKS === '1' ? { devLink: link } : {};
 }
 
 export function appUrl(req) {
