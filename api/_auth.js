@@ -109,6 +109,8 @@ export async function sendMail({ to, subject, html, text }) {
   const t = nodemailer.createTransport({
     host: process.env.SMTP_HOST, port, secure: port === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    forceAuth: true, // o servidor da Sellmed nem sempre anuncia AUTH para IPs de fora; sem isso o envio é recusado (550)
+    connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 30000,
   });
   await t.sendMail({ from: process.env.SMTP_FROM || `Treinamentos Sellmed <${process.env.SMTP_USER}>`, to, subject, html, text });
 }
