@@ -331,7 +331,7 @@ function renderDetail() {
 }
 
 document.addEventListener('click', async (e) => {
-  const el = e.target.closest('[data-open],[data-editT],[data-moveT],[data-newL],[data-editL],[data-delL],[data-moveL],[data-delP]');
+  const el = e.target.closest('[data-open],[data-editT],[data-moveT],[data-newL],[data-editL],[data-delL],[data-moveL],[data-delP],[data-resend]');
   if (!el) return;
   e.preventDefault();
   const d = el.dataset;
@@ -352,6 +352,10 @@ document.addEventListener('click', async (e) => {
       const ids = TR.find((t) => t.id === OPEN).aulas.map((a) => a.id), i = +d.movel, j = i + +d.dir;
       [ids[i], ids[j]] = [ids[j], ids[i]];
       await api('reorder', { ids }); renderDetail();
+    } else if (d.resend) {
+      const p = RES.participantes.find((x) => x.id === d.resend);
+      if (!confirm(`Enviar para ${p.email} um link para ${p.senhaEm ? 'redefinir' : 'criar'} a senha?`)) return;
+      el.disabled = true; RES = await api('reenviar', { id: p.id }); renderRes(); sentToast(RES);
     } else if (d.delp) {
       const p = RES.participantes.find((x) => x.id === d.delp);
       if (!confirm(`Remover ${p.name} (${p.email}) e todo o progresso e tentativas dessa pessoa?`)) return;
@@ -669,6 +673,21 @@ function csv(rows, cols, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8' }));
   a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+function inviteModal() {
+  openModal(`<header><h3>Convidar participante</h3><button class="x" data-close aria-label="Fechar">×</button></header>
+    <div class="body"><p style="margin:0 0 14px">A pessoa recebe um e-mail com o link para criar a senha e entrar na plataforma. Só e-mails @sellmedbrasil.com.</p>
+    <div class="form-grid"><label class="f">Nome e sobrenome<input type="text" id="iName" maxlength="120"></label>
+    <label class="f">E-mail Sellmed<input type="text" id="iEmail" maxlength="160" placeholder="nome@sellmedbrasil.com"></label></div></div>
+    <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="iSend">Enviar convite</button></footer>`);
+  $('#iSend').onclick = async () => {
+    const b = $('#iSend'); b.disabled = true;
+    try { RES = await api('convidar', { name: $('#iName').value, email: $('#iEmail').value }); $('#ov').classList.remove('open'); renderRes(); sentToast(RES); }
+    catch (x) { toast(x.message, true); b.disabled = false; }
+  };
+  $('#iName').focus();
+}
+function sentToast(r) { toast(`Link enviado para ${r.sentTo}`); if (r.devLink) console.log('Link (servidor local):', r.devLink); }
+
 function renderRes() {
   const { progresso, tentativas, participantes } = RES;
   const q = norm(RF.q);
@@ -682,7 +701,7 @@ function renderRes() {
 
   $('#tabRes').innerHTML = `
     <div class="filters">
-      <input type="search" id="rq" placeholder="Buscar participante por nome, e-mail ou área…" value="${esc(RF.q)}">
+      <input type="search" id="rq" placeholder="Buscar participante por nome ou e-mail…" value="${esc(RF.q)}">
       <select id="rt"><option value="">Todos os treinamentos</option>${names.map((n) => `<option ${RF.t === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       <button class="btn btn-ghost" id="rReload">Atualizar</button>
     </div>
@@ -694,8 +713,8 @@ function renderRes() {
     </div>
     <section class="panel"><h2>Progresso por treinamento <span class="right"><button class="btn btn-ghost btn-sm" id="cP">Exportar CSV</button></span></h2>
       ${!pr.length ? '<div class="empty">Nenhum progresso registrado ainda.</div>' : `<div class="tbl-wrap"><table class="t">
-      <thead><tr><th>Participante</th><th>Área</th><th>Treinamento</th><th>Progresso</th><th>Status</th><th>Última conclusão</th></tr></thead>
-      <tbody>${pr.map((r) => `<tr><td><b>${esc(r.name)}</b><div class="small">${esc(r.email)}</div></td><td>${esc(r.area)}</td><td>${esc(r.treinamento)}</td>
+      <thead><tr><th>Participante</th><th>Treinamento</th><th>Progresso</th><th>Status</th><th>Última conclusão</th></tr></thead>
+      <tbody>${pr.map((r) => `<tr><td><b>${esc(r.name)}</b><div class="small">${esc(r.email)}</div></td><td>${esc(r.treinamento)}</td>
         <td><div class="barrow"><div class="bar"><i style="width:${Math.round((r.concluidas / r.total) * 100)}%"></i></div>${r.concluidas}/${r.total}</div></td>
         <td>${r.concluidas === r.total ? '<span class="tag ok">Concluído</span>' : '<span class="tag mid">Em andamento</span>'}</td>
         <td class="small">${fmtDT(r.ultimaConclusao)}</td></tr>`).join('')}</tbody></table></div>`}
@@ -708,21 +727,25 @@ function renderRes() {
         <td>${x.passed ? '<span class="tag ok">Aprovado</span>' : '<span class="tag no">Reprovado</span>'}</td></tr>`).join('')}</tbody></table>
         ${tt.length > 500 ? `<div class="hint" style="margin-top:8px">Mostrando as 500 mais recentes de ${tt.length}. O CSV traz todas.</div>` : ''}</div>`}
     </section>
-    ${RF.t ? '' : `<section class="panel"><h2>Participantes <span class="right"><button class="btn btn-ghost btn-sm" id="cU">Exportar CSV</button></span></h2>
-      ${!pp.length ? '<div class="empty">Ninguém acessou a plataforma ainda.</div>' : `<div class="tbl-wrap"><table class="t">
-      <thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Aulas concluídas</th><th>Tentativas</th><th>Último acesso</th><th></th></tr></thead>
-      <tbody>${pp.map((p) => `<tr><td><b>${esc(p.name)}</b></td><td class="small">${esc(p.email)}</td><td>${esc(p.area)}</td><td>${p.concluidas}</td><td>${p.tentativas}</td>
-        <td class="small">${fmtDT(p.lastSeen)}</td><td class="acts"><button class="btn btn-danger btn-sm" data-delP="${p.id}">Remover</button></td></tr>`).join('')}</tbody></table></div>`}
+    ${RF.t ? '' : `<section class="panel"><h2>Participantes <span class="right"><button class="btn btn-teal btn-sm" id="inv">+ Convidar por e-mail</button><button class="btn btn-ghost btn-sm" id="cU">Exportar CSV</button></span></h2>
+      ${!pp.length ? '<div class="empty">Ninguém cadastrado ainda. As pessoas entram em "Primeiro acesso" na plataforma, ou você pode convidá-las por e-mail.</div>' : `<div class="tbl-wrap"><table class="t">
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Acesso</th><th>Aulas concluídas</th><th>Tentativas</th><th>Último acesso</th><th></th></tr></thead>
+      <tbody>${pp.map((p) => `<tr><td><b>${esc(p.name)}</b></td><td class="small">${esc(p.email)}</td>
+        <td>${p.senhaEm ? '<span class="tag ok">Senha criada</span>' : '<span class="tag mid">Aguardando senha</span>'}</td><td>${p.concluidas}</td><td>${p.tentativas}</td>
+        <td class="small">${p.senhaEm ? fmtDT(p.lastSeen) : '—'}</td><td class="acts">
+        <button class="btn btn-ghost btn-sm" data-resend="${p.id}" title="Envia um novo link para ${p.senhaEm ? 'redefinir' : 'criar'} a senha">${p.senhaEm ? 'Redefinir senha' : 'Reenviar link'}</button>
+        <button class="btn btn-danger btn-sm" data-delP="${p.id}">Remover</button></td></tr>`).join('')}</tbody></table></div>`}
     </section>`}`;
   const rq = $('#rq');
   rq.oninput = () => { RF.q = rq.value; const pos = rq.selectionStart; renderRes(); const n = $('#rq'); n.focus(); n.setSelectionRange(pos, pos); };
   $('#rt').onchange = (e) => { RF.t = e.target.value; renderRes(); };
   $('#rReload').onclick = loadRes;
-  $('#cP')?.addEventListener('click', () => csv(pr, [['Nome', (r) => r.name], ['E-mail', (r) => r.email], ['Área', (r) => r.area], ['Treinamento', (r) => r.treinamento],
+  $('#inv')?.addEventListener('click', inviteModal);
+  $('#cP')?.addEventListener('click', () => csv(pr, [['Nome', (r) => r.name], ['E-mail', (r) => r.email], ['Treinamento', (r) => r.treinamento],
     ['Aulas concluídas', (r) => r.concluidas], ['Total de aulas', (r) => r.total], ['Status', (r) => r.concluidas === r.total ? 'Concluído' : 'Em andamento'], ['Última conclusão', (r) => fmtDT(r.ultimaConclusao)]], 'progresso-treinamentos'));
-  $('#cT')?.addEventListener('click', () => csv(tt, [['Data', (x) => fmtDT(x.createdAt)], ['Nome', (x) => x.name], ['E-mail', (x) => x.email], ['Área', (x) => x.area], ['Treinamento', (x) => x.treinamento],
+  $('#cT')?.addEventListener('click', () => csv(tt, [['Data', (x) => fmtDT(x.createdAt)], ['Nome', (x) => x.name], ['E-mail', (x) => x.email], ['Treinamento', (x) => x.treinamento],
     ['Quiz', (x) => x.quiz], ['Nota (%)', (x) => x.score], ['Acertos', (x) => x.correct], ['Perguntas', (x) => x.total], ['Resultado', (x) => x.passed ? 'Aprovado' : 'Reprovado']], 'tentativas-quizzes'));
-  $('#cU')?.addEventListener('click', () => csv(pp, [['Nome', (p) => p.name], ['E-mail', (p) => p.email], ['Área', (p) => p.area], ['Aulas concluídas', (p) => p.concluidas],
+  $('#cU')?.addEventListener('click', () => csv(pp, [['Nome', (p) => p.name], ['E-mail', (p) => p.email], ['Acesso', (p) => p.senhaEm ? 'Senha criada' : 'Aguardando senha'], ['Aulas concluídas', (p) => p.concluidas],
     ['Tentativas', (p) => p.tentativas], ['Primeiro acesso', (p) => fmtDT(p.createdAt)], ['Último acesso', (p) => fmtDT(p.lastSeen)]], 'participantes'));
 }
 

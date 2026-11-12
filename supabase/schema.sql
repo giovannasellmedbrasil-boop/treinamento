@@ -83,3 +83,35 @@ values ('treinamentos', 'treinamentos', true, array[
   'application/vnd.ms-powerpoint',
   'image/jpeg'])
 on conflict (id) do nothing;
+
+-- ---------- Login com senha (12/11/2026) ----------
+-- Só e-mails do domínio permitido (ALLOWED_DOMAIN, padrão sellmedbrasil.com). No primeiro acesso a pessoa
+-- recebe por e-mail um link de uso único para criar a senha; o mesmo fluxo serve para "esqueci minha senha".
+alter table public.participantes add column if not exists password_hash text;
+alter table public.participantes add column if not exists password_set_at timestamptz;
+alter table public.participantes add column if not exists failed_logins int not null default 0;
+alter table public.participantes add column if not exists locked_until timestamptz;
+
+-- Links enviados por e-mail (guardamos só o hash do token)
+create table if not exists public.auth_tokens (
+  token_hash      text primary key,
+  participante_id uuid not null references public.participantes(id) on delete cascade,
+  purpose         text not null check (purpose in ('primeiro', 'redefinir')),
+  expires_at      timestamptz not null,
+  used_at         timestamptz,
+  created_at      timestamptz not null default now()
+);
+create index if not exists auth_tokens_participante on public.auth_tokens (participante_id, created_at);
+
+-- Sessões abertas no navegador (guardamos só o hash do token)
+create table if not exists public.sessoes (
+  token_hash      text primary key,
+  participante_id uuid not null references public.participantes(id) on delete cascade,
+  created_at      timestamptz not null default now(),
+  expires_at      timestamptz not null
+);
+create index if not exists sessoes_participante on public.sessoes (participante_id);
+
+alter table public.auth_tokens enable row level security;
+alter table public.sessoes     enable row level security;
+revoke all on public.auth_tokens, public.sessoes from anon, authenticated;

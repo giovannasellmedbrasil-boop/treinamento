@@ -24,6 +24,7 @@ await new PGLiteSocketServer({ db, port: PGPORT, host: '127.0.0.1' }).start();
 Object.assign(process.env, {
   DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${PGPORT}/postgres?sslmode=disable`, DATABASE_SSL: 'off',
   SUPABASE_URL: `http://127.0.0.1:${STORAGE}`, SUPABASE_SECRET_KEY: 'local', ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'local',
+  DEV_EMAIL_LINKS: process.env.SMTP_HOST ? '0' : '1', // sem SMTP, o link de senha aparece no terminal e na tela
 });
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.mjs': 'text/javascript', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png', '.pdf': 'application/pdf',

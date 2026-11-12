@@ -60,12 +60,22 @@
   .gate .feats span{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;}
   .gate .side small{margin-top:30px;color:#8FA3CF;font-size:12px;}
   .gate .form{display:flex;align-items:center;justify-content:center;padding:40px 32px;}
-  .gate form{width:100%;max-width:380px;}
-  .gate form h3{margin:0 0 6px;font-size:22px;color:var(--navy);font-weight:800;}
-  .gate form p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.5;}
+  .gate .gv h3{margin:0 0 6px;font-size:22px;color:var(--navy);font-weight:800;}
+  .gate .gv p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.5;}
   label.f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:14px;}
   label.f input{border:1px solid var(--border);border-radius:9px;padding:11px 13px;font:400 15px 'Inter',sans-serif;color:var(--ink);background:var(--surface);text-transform:none;letter-spacing:0;}
   label.f input:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  .alt{display:flex;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap;}
+  .alt a{color:var(--teal);font-weight:600;font-size:13.5px;text-decoration:none;} .alt a:hover{text-decoration:underline;}
+  .pw{position:relative;display:block;} .pw input{width:100%;padding-right:78px;}
+  .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font:600 12px 'Inter',sans-serif;cursor:pointer;padding:6px 8px;border-radius:6px;text-transform:none;letter-spacing:0;}
+  .eye:hover{background:var(--hover);color:var(--navy);}
+  .hint3{font-weight:500;text-transform:none;letter-spacing:0;font-size:12px;}
+  .gv .ok{color:#2D6E2A;background:var(--green-soft);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:14px;}
+  .mailic{width:58px;height:58px;border-radius:14px;background:var(--teal-soft);color:var(--teal);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+  .gv .sentmsg{color:var(--ink) !important;}
+  .gv .hint2{font-size:13px !important;}
+  .gv{width:100%;max-width:380px;}
   .err{color:var(--red);background:var(--red-bg);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:14px;}
 
   /* Início */
@@ -231,14 +241,54 @@
     <small>Sellmed Brasil · Produtos que salvam vidas</small>
   </div>
   <div class="form">
-    <form id="gateForm" novalidate>
+    <!-- Entrar -->
+    <form class="gv" data-v="login" novalidate>
       <h3>Acessar treinamentos</h3>
-      <p>Informe seus dados. Use sempre o mesmo e-mail para manter seu progresso em qualquer dispositivo.</p>
-      <div class="err hidden" id="gateErr"></div>
-      <label class="f">Nome e sobrenome<input id="gName" autocomplete="name" placeholder="Ex.: Maria Silva" required></label>
-      <label class="f">E-mail Sellmed<input id="gEmail" type="email" autocomplete="email" placeholder="nome@sellmedbrasil.com" required></label>
-      <label class="f hidden" id="gCodeWrap">Código de acesso<input id="gCode" autocomplete="off" style="text-transform:uppercase"></label>
-      <button class="btn btn-primary" id="gateBtn" style="width:100%;padding:12px;margin-top:4px">Entrar</button>
+      <p>Entre com seu e-mail Sellmed e sua senha.</p>
+      <div class="err hidden"></div>
+      <label class="f">E-mail Sellmed<input name="email" type="email" autocomplete="username" placeholder="nome@sellmedbrasil.com" required></label>
+      <label class="f">Senha<span class="pw"><input name="password" type="password" autocomplete="current-password" required><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></span></label>
+      <button class="btn btn-primary go" style="width:100%;padding:12px;margin-top:4px">Entrar</button>
+      <div class="alt"><a href="#" data-go="primeiro">Primeiro acesso</a><a href="#" data-go="esqueci">Esqueci minha senha</a></div>
+    </form>
+    <!-- Primeiro acesso -->
+    <form class="gv hidden" data-v="primeiro" novalidate>
+      <h3>Primeiro acesso</h3>
+      <p>Informe seus dados. Vamos enviar um link para o seu e-mail Sellmed para você criar a sua senha.</p>
+      <div class="err hidden"></div>
+      <label class="f">Nome e sobrenome<input name="name" autocomplete="name" placeholder="Ex.: Maria Silva" required></label>
+      <label class="f">E-mail Sellmed<input name="email" type="email" autocomplete="email" placeholder="nome@sellmedbrasil.com" required></label>
+      <button class="btn btn-primary go" style="width:100%;padding:12px;margin-top:4px">Enviar link por e-mail</button>
+      <div class="alt"><a href="#" data-go="login">← Já tenho senha</a></div>
+    </form>
+    <!-- Esqueci a senha -->
+    <form class="gv hidden" data-v="esqueci" novalidate>
+      <h3>Esqueci minha senha</h3>
+      <p>Informe seu e-mail Sellmed. Enviaremos um link para você criar uma nova senha.</p>
+      <div class="err hidden"></div>
+      <label class="f">E-mail Sellmed<input name="email" type="email" autocomplete="email" placeholder="nome@sellmedbrasil.com" required></label>
+      <button class="btn btn-primary go" style="width:100%;padding:12px;margin-top:4px">Enviar link por e-mail</button>
+      <div class="alt"><a href="#" data-go="login">← Voltar para o login</a></div>
+    </form>
+    <!-- Link enviado -->
+    <div class="gv hidden" data-v="enviado">
+      <div class="mailic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+      <h3>Confira seu e-mail</h3>
+      <p class="sentmsg"></p>
+      <p class="hint2">O link vale por 24 horas. Não chegou em alguns minutos? Veja a caixa de spam ou lixo eletrônico.</p>
+      <button class="btn btn-ghost" data-go="login" style="width:100%;padding:12px">Voltar para o login</button>
+    </div>
+    <!-- Criar senha (link do e-mail) -->
+    <form class="gv hidden" data-v="senha" novalidate>
+      <h3 class="st">Crie sua senha</h3>
+      <p class="sp"></p>
+      <div class="err hidden"></div>
+      <div class="sbody">
+        <label class="f">Nova senha<span class="pw"><input name="password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></span><span class="hint3">Mínimo de 8 caracteres.</span></label>
+        <label class="f">Repita a senha<input name="password2" type="password" autocomplete="new-password" required></label>
+        <button class="btn btn-primary go" style="width:100%;padding:12px;margin-top:4px">Salvar senha e entrar</button>
+      </div>
+      <div class="alt"><a href="#" data-go="login">← Voltar para o login</a></div>
     </form>
   </div>
 </section>
@@ -288,15 +338,15 @@ const LETTERS = 'ABCDEFGH';
 
 let S = { p: null, trainings: [], done: new Set(), quizzes: new Map() };
 let FILTER = { q: '', area: '' };
-let REQUIRES_CODE = false;
+let DOMAIN = 'sellmedbrasil.com';
 $('#yr').textContent = new Date().getFullYear();
 
 function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 3000); }
 
 async function api(body) {
-  const r = await fetch('/api/aluno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch('/api/aluno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: store.get('trein.session'), ...body }) });
   const d = await r.json().catch(() => ({}));
-  if (d.relogin) { logout(); throw new Error(d.error); }
+  if (d.relogin) { logout(true); throw new Error(d.error); }
   if (!r.ok) throw new Error(d.error || 'Falha na conexão.');
   return d;
 }
@@ -306,7 +356,7 @@ function setData(d) {
   S.trainings = d.treinamentos || [];
   S.done = new Set((d.conclusoes || []).map((c) => c.aulaId));
   S.quizzes = new Map((d.quizzes || []).map((x) => [x.aulaId, x]));
-  store.set('trein.pid', S.p.id);
+  if (d.session) store.set('trein.session', d.session);
   const ini = S.p.name.split(/\s+/).filter(Boolean);
   $('#avatar').textContent = ((ini[0]?.[0] || '') + (ini.length > 1 ? ini[ini.length - 1][0] : '')).toUpperCase();
   $('#who').innerHTML = `${esc(S.p.name)}<small>${esc(S.p.email)}</small>`;
@@ -314,21 +364,102 @@ function setData(d) {
 
 const progress = (t) => { const n = t.aulas.length, d = t.aulas.filter((a) => S.done.has(a.id)).length; return { n, d, pct: n ? Math.round((d / n) * 100) : 0 }; };
 
-/* ---------- Entrada ---------- */
-function showGate() { $('#gate').classList.remove('hidden'); $('#shell').classList.add('hidden'); $('#gCodeWrap').classList.toggle('hidden', !REQUIRES_CODE); $('#gName').focus(); }
+/* ---------- Entrada: login, primeiro acesso, esqueci a senha, criar senha ---------- */
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+function gateView(v) {
+  $$('.gv').forEach((x) => x.classList.toggle('hidden', x.dataset.v !== v));
+  const el = $(`.gv[data-v="${v}"]`);
+  const err = $('.err, .ok', el); if (err) { err.className = 'err hidden'; err.textContent = ''; }
+  setTimeout(() => $('input', el)?.focus(), 0);
+  return el;
+}
+function showGate(v = 'login') { $('#gate').classList.remove('hidden'); $('#shell').classList.add('hidden'); return gateView(v); }
 function showShell() { $('#gate').classList.add('hidden'); $('#shell').classList.remove('hidden'); }
-function logout() { store.set('trein.pid', null); S = { p: null, trainings: [], done: new Set(), quizzes: new Map() }; showGate(); }
-$('#logout').onclick = logout;
+function logout(silent) {
+  const sess = store.get('trein.session');
+  if (sess && !silent) fetch('/api/aluno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sair', session: sess }) }).catch(() => {});
+  store.set('trein.session', null);
+  S = { p: null, trainings: [], done: new Set(), quizzes: new Map() };
+  if (/^#\/senha\//.test(location.hash)) return;
+  history.replaceState(null, '', location.pathname); showGate('login');
+}
+$('#logout').onclick = () => logout();
 
-$('#gateForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = $('#gateBtn'), err = $('#gateErr');
-  err.classList.add('hidden'); btn.disabled = true; btn.textContent = 'Entrando…';
-  try {
-    setData(await api({ action: 'entrar', name: $('#gName').value, email: $('#gEmail').value, code: $('#gCode').value }));
-    showShell(); route();
-  } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
-  finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+const domainOk = (e) => /^[^\s@]+@[^\s@]+$/.test(e.trim()) && e.trim().toLowerCase().endsWith('@' + DOMAIN);
+function showErr(form, msg) { const e = $('.err', form); e.textContent = msg; e.className = 'err'; }
+
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-go]');
+  if (g) {
+    e.preventDefault();
+    const typed = $$('.gv:not(.hidden) input[name=email]')[0]?.value;
+    if (/^#\/senha\//.test(location.hash)) history.replaceState(null, '', location.pathname);
+    const v = gateView(g.dataset.go);
+    if (typed && v.email && !v.email.value) v.email.value = typed; // leva o e-mail digitado para a próxima tela
+  }
+  const eye = e.target.closest('.eye');
+  if (eye) { const i = eye.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; eye.textContent = i.type === 'password' ? 'Mostrar' : 'Ocultar'; }
+});
+
+async function busy(form, label, fn) {
+  const btn = $('.go', form), old = btn.textContent;
+  btn.disabled = true; btn.textContent = label;
+  try { await fn(); } catch (x) { showErr(form, x.message); } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+$('.gv[data-v="login"]').addEventListener('submit', (e) => {
+  e.preventDefault(); const f = e.currentTarget, email = f.email.value.trim();
+  if (!domainOk(email)) return showErr(f, `Use seu e-mail corporativo @${DOMAIN}.`);
+  if (!f.password.value) return showErr(f, 'Informe sua senha.');
+  busy(f, 'Entrando…', async () => {
+    setData(await api({ action: 'login', email, password: f.password.value }));
+    f.password.value = ''; showShell(); route();
+  });
+});
+
+function linkSent(d) {
+  const v = gateView('enviado');
+  $('.sentmsg', v).textContent = d.message;
+  if (d.devLink) $('.sentmsg', v).innerHTML += `<br><br><span style="font-size:12px;color:var(--muted)">Servidor local, sem envio de e-mail: <a href="${esc(d.devLink)}" id="devLink">abrir o link</a></span>`;
+}
+$('.gv[data-v="primeiro"]').addEventListener('submit', (e) => {
+  e.preventDefault(); const f = e.currentTarget, email = f.email.value.trim(), name = f.name.value.trim();
+  if (name.split(/\s+/).length < 2) return showErr(f, 'Informe nome e sobrenome.');
+  if (!domainOk(email)) return showErr(f, `Use seu e-mail corporativo @${DOMAIN}.`);
+  busy(f, 'Enviando…', async () => linkSent(await api({ action: 'primeiroAcesso', name, email })));
+});
+$('.gv[data-v="esqueci"]').addEventListener('submit', (e) => {
+  e.preventDefault(); const f = e.currentTarget, email = f.email.value.trim();
+  if (!domainOk(email)) return showErr(f, `Use seu e-mail corporativo @${DOMAIN}.`);
+  busy(f, 'Enviando…', async () => linkSent(await api({ action: 'esqueci', email })));
+});
+
+let LINK_TOKEN = null;
+async function openPasswordLink(token) {
+  LINK_TOKEN = token;
+  const f = showGate('senha');
+  $('.sbody', f).classList.add('hidden'); $('.st', f).textContent = 'Verificando o link…'; $('.sp', f).textContent = '';
+  let d; try { d = await api({ action: 'link', token }); } catch { d = { valid: false }; }
+  if (!d.valid) {
+    $('.st', f).textContent = 'Link expirado ou já usado';
+    $('.sp', f).innerHTML = 'Os links valem por 24 horas e só funcionam uma vez. <a href="#" data-go="esqueci" style="color:var(--teal);font-weight:600">Pedir um novo link</a>';
+    return;
+  }
+  $('.st', f).textContent = d.purpose === 'primeiro' ? 'Crie sua senha' : 'Crie uma nova senha';
+  $('.sp', f).innerHTML = `${d.name ? `Olá, <b>${esc(d.name.split(/\s+/)[0])}</b>! ` : ''}Esta será a senha de <b>${esc(d.email)}</b> para entrar na plataforma.`;
+  $('.sbody', f).classList.remove('hidden'); f.password.focus();
+  $$('input[name=email]').forEach((i) => i.value = d.email);
+}
+$('.gv[data-v="senha"]').addEventListener('submit', (e) => {
+  e.preventDefault(); const f = e.currentTarget;
+  if (f.password.value.length < 8) return showErr(f, 'A senha precisa ter pelo menos 8 caracteres.');
+  if (f.password.value !== f.password2.value) return showErr(f, 'As duas senhas não são iguais.');
+  busy(f, 'Salvando…', async () => {
+    const d = await api({ action: 'definirSenha', token: LINK_TOKEN, password: f.password.value });
+    f.password.value = f.password2.value = '';
+    history.replaceState(null, '', location.pathname);
+    setData(d); showShell(); route(); toast('Senha criada. Bem-vindo(a)!');
+  });
 });
 
 /* ---------- Início ---------- */
@@ -486,7 +617,7 @@ function renderLesson(t, a, next) {
   const mark = async () => {
     if (S.done.has(a.id)) return;
     S.done.add(a.id);
-    try { await api({ action: 'concluir', pid: S.p.id, aulaId: a.id }); renderCourse(t.slug, a.id); toast('Aula concluída'); }
+    try { await api({ action: 'concluir', aulaId: a.id }); renderCourse(t.slug, a.id); toast('Aula concluída'); }
     catch (x) { S.done.delete(a.id); toast(x.message, true); }
   };
   $('#doneBtn')?.addEventListener('click', mark);
@@ -539,7 +670,7 @@ function renderQuiz(t, a, next, result, answers) {
   $('#send').onclick = async () => {
     const b = $('#send'); b.disabled = true; b.textContent = 'Corrigindo…';
     try {
-      const r = await api({ action: 'quiz', pid: S.p.id, aulaId: a.id, answers });
+      const r = await api({ action: 'quiz', aulaId: a.id, answers });
       const prev = S.quizzes.get(a.id);
       S.quizzes.set(a.id, { aulaId: a.id, best: Math.max(prev?.best ?? 0, r.score), tries: (prev?.tries || 0) + 1, passed: prev?.passed || r.passed });
       const wasDone = S.done.has(a.id);
@@ -584,6 +715,8 @@ function certificate(t) {
 
 /* ---------- Rotas ---------- */
 function route() {
+  const sm = location.hash.match(/^#\/senha\/([\w-]{20,100})/);
+  if (sm) return openPasswordLink(sm[1]);
   if (!S.p) return;
   const m = location.hash.match(/^#\/t\/([^/]+)(?:\/([^/]+))?/);
   if (m) renderCourse(decodeURIComponent(m[1]), m[2]);
@@ -596,13 +729,15 @@ document.addEventListener('click', (e) => {
 });
 
 (async function init() {
-  fetch('/api/aluno').then((r) => r.json()).then((d) => { REQUIRES_CODE = !!d.requiresCode; $('#gCodeWrap').classList.toggle('hidden', !REQUIRES_CODE); }).catch(() => {});
-  const pid = store.get('trein.pid');
-  if (!pid) return showGate();
+  fetch('/api/aluno').then((r) => r.json()).then((d) => { if (d.domain) { DOMAIN = d.domain; $$('input[name=email]').forEach((i) => i.placeholder = 'nome@' + DOMAIN); } }).catch(() => {});
+  store.set('trein.pid', null); // versão antiga (sem senha)
+  const sm = location.hash.match(/^#\/senha\/([\w-]{20,100})/);
+  if (sm) return openPasswordLink(sm[1]);
+  if (!store.get('trein.session')) return showGate('login');
   showShell();
   $('#view').innerHTML = '<main style="margin-top:30px"><div class="cards"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></main>';
-  try { setData(await api({ action: 'conteudo', pid })); route(); }
-  catch (x) { if (S.p === null && !store.get('trein.pid')) return; $('#view').innerHTML = `<main style="margin-top:30px"><div class="empty"><b>Não foi possível carregar os treinamentos</b>${esc(x.message)}</div></main>`; }
+  try { setData(await api({ action: 'conteudo' })); route(); }
+  catch (x) { if (!store.get('trein.session')) return; $('#view').innerHTML = `<main style="margin-top:30px"><div class="empty"><b>Não foi possível carregar os treinamentos</b>${esc(x.message)}</div></main>`; }
 })();
 </script>
 </body>

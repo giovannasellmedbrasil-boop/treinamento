@@ -1,3 +1,4 @@
+import { DOMAIN, allowedEmail, appUrl, createLinkToken, linkEmail, normEmail, sendMail } from './_auth.js';
 import { clean, freeSlug, pool, getLesson, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
 
 const isHttp = (u) => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u) && u.length <= 1000;
@@ -85,6 +86,7 @@ async function results() {
      order by x.created_at desc limit 5000`);
   const participantes = await q(`
     select p.id, p.name, p.email, p.area, p.created_at as "createdAt", p.last_seen as "lastSeen",
+           p.password_set_at as "senhaEm",
            (select count(*)::int from public.conclusoes c where c.participante_id = p.id) as concluidas,
            (select count(*)::int from public.tentativas x where x.participante_id = p.id) as tentativas
       from public.participantes p order by p.last_seen desc`);
@@ -177,6 +179,25 @@ export default async function handler(req, res) {
       const table = item.table === 'treinamentos' ? 'treinamentos' : 'aulas';
       const ids = (Array.isArray(item.ids) ? item.ids : []).filter(isUuid);
       for (let i = 0; i < ids.length; i++) await q(`update public.${table} set sort_order = $2 where id = $1`, [ids[i], (i + 1) * 10]);
+    } else if (action === 'convidar' || action === 'reenviar') {
+      // envia o link de criar senha; "convidar" cadastra a pessoa se ainda não existir
+      let p;
+      if (action === 'reenviar') {
+        if (!isUuid(item.id)) return res.status(400).json({ error: 'Participante inválido.' });
+        [p] = await q(`select id, name, email, password_hash is not null as "hasPassword" from public.participantes where id = $1`, [item.id]);
+        if (!p) return res.status(404).json({ error: 'Participante não encontrado.' });
+      } else {
+        const email = normEmail(item.email), name = clean(item.name, 120);
+        if (!allowedEmail(email)) return res.status(400).json({ error: `O e-mail precisa ser @${DOMAIN}.` });
+        if (name.split(/\s+/).length < 2) return res.status(400).json({ error: 'Informe nome e sobrenome.' });
+        [p] = await q(`insert into public.participantes (name, email) values ($1, $2)
+                       on conflict (lower(email)) do update set name = case when participantes.password_hash is null then excluded.name else participantes.name end
+                       returning id, name, email, password_hash is not null as "hasPassword"`, [name, email]);
+      }
+      const token = await createLinkToken(p.id, p.hasPassword ? 'redefinir' : 'primeiro');
+      const base = appUrl(req), link = `${base}/#/senha/${token}`;
+      await sendMail({ to: p.email, ...linkEmail({ name: p.name, link, purpose: p.hasPassword ? 'redefinir' : 'primeiro', base }) });
+      return res.status(200).json({ ...(await results()), sentTo: p.email, ...(process.env.DEV_EMAIL_LINKS === '1' ? { devLink: link } : {}) });
     } else if (action === 'deleteParticipant') {
       if (!isUuid(item.id)) return res.status(400).json({ error: 'Participante inválido.' });
       await q(`delete from public.participantes where id = $1`, [item.id]);
@@ -187,6 +208,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ treinamentos: await listTrainings() });
   } catch (e) {
-    res.status(500).json({ error: 'Erro ao salvar: ' + e.message });
+    res.status(e.status || 500).json({ error: e.status ? e.message : 'Erro ao salvar: ' + e.message });
   }
 }

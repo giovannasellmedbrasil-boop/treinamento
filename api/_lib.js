@@ -84,10 +84,6 @@ function safeEqual(given, expected) {
   return b.length > 0 && a.length === b.length && timingSafeEqual(a, b);
 }
 export const isAdmin = (password) => safeEqual(password, process.env.ADMIN_PASSWORD);
-// Código de acesso opcional para os participantes (se ACCESS_CODE não estiver definido, a entrada é livre)
-export const accessCodeRequired = () => !!process.env.ACCESS_CODE;
-export const accessCodeOk = (code) => !accessCodeRequired() || safeEqual(String(code || '').trim().toUpperCase(), process.env.ACCESS_CODE.trim().toUpperCase());
-
 export const clean = (s, max) => String(s ?? '').trim().slice(0, max);
 export const intOrNull = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Math.trunc(Number(v)));
 
