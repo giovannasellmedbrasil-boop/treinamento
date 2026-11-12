@@ -3,7 +3,7 @@
 Treinamentos de produto com **vídeos**, **apresentações (PPTX/PDF)** e **quizzes**, na identidade visual da Sellmed.
 
 - `index.html`: área do participante. A pessoa entra com nome e e-mail (e o código de acesso, se ele estiver configurado). Lá ela assiste às aulas, responde aos quizzes, acompanha o próprio progresso e emite o certificado ao concluir.
-- `admin.html`: painel com senha para criar treinamentos, adicionar aulas, montar quizzes e ver os resultados (com exportação CSV).
+- `admin.html`: painel com senha. **Novo treinamento** abre em abas (Dados · Vídeo · Apresentação · Quiz, já com 5 perguntas) e cria tudo de uma vez. Depois, mais aulas podem ser adicionadas na lista do treinamento. Também mostra os resultados, com exportação CSV.
 
 ## Como funciona
 

@@ -126,6 +126,16 @@
   .modal .body{padding:20px 22px;}
   .modal footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);border-radius:0 0 14px 14px;}
   .x{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;}
+  .mtabs{display:flex;gap:4px;padding:0 22px;border-bottom:1px solid var(--border);overflow-x:auto;}
+  .mtabs button{background:none;border:none;border-bottom:3px solid transparent;padding:12px 12px 10px;font:700 13px 'Montserrat',sans-serif;color:var(--muted);cursor:pointer;margin-bottom:-1px;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+  .mtabs button.on{color:var(--navy);border-bottom-color:var(--teal);}
+  .mtabs .dot{width:20px;height:20px;border-radius:50%;background:#EEF0F2;color:var(--muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;}
+  .mtabs button.on .dot{background:var(--navy);color:#fff;}
+  .mtabs button.ok .dot{background:var(--green-dk);color:#fff;font-size:0;}
+  .mtabs button.ok .dot::after{content:"✓";font-size:11px;}
+  .modal{display:flex;flex-direction:column;max-height:calc(100vh - 60px);}
+  .modal .body{min-height:0;overflow:auto;flex:1;}
+  .modal header,.modal .mtabs,.modal footer{flex:none;}
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:9px;font-size:13.5px;font-weight:500;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.2);}
   #toast.err{background:var(--red);}
   @media (max-width:760px){ header.topbar,main{padding-left:16px;padding-right:16px;} .form-grid{grid-template-columns:1fr;} .kpis{grid-template-columns:1fr 1fr;} }
@@ -249,21 +259,6 @@ async function upload(file, type, name, bar) {
   return d.url;
 }
 
-// Capa: redimensiona no navegador para JPG 1280px
-function toJpeg(file) {
-  return new Promise((ok, fail) => {
-    const img = new Image(); img.onload = () => {
-      const w = Math.min(1280, img.width), h = Math.round(img.height * (w / img.width));
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      c.toBlob((b) => b ? ok(b) : fail(new Error('Imagem inválida.')), 'image/jpeg', 0.85);
-      URL.revokeObjectURL(img.src);
-    };
-    img.onerror = () => fail(new Error('Não foi possível ler a imagem.'));
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 function dropzone(el, onFile) {
   const inp = $('input', el);
   inp.onchange = () => inp.files[0] && onFile(inp.files[0]);
@@ -365,155 +360,255 @@ document.addEventListener('click', async (e) => {
   } catch (x) { toast(x.message, true); }
 });
 
+/* ---------- Componentes reutilizáveis: seletor de mídia e montador de quiz ---------- */
+let UID = 0;
+const blankQ = () => ({ text: '', options: ['', '', '', ''], correct: null, explanation: '' });
+const QUIZ_DEFAULT = 5; // quiz novo já abre com 5 perguntas
+
+// Vídeo ou apresentação: enviar arquivo OU colar link. Devolve { get, html } ligado ao elemento raiz.
+function mediaPickerHtml(kind) {
+  const accept = kind === 'video' ? '.mp4,.webm,.mov,video/mp4,video/webm,video/quicktime' : '.pptx,.ppt,.pdf';
+  return `<div class="mp">
+    <div class="seg" style="margin-bottom:10px"><button type="button" data-mode="file">Enviar arquivo</button><button type="button" data-mode="link">Colar link</button></div>
+    <div class="m-file"><label class="drop">${kind === 'video' ? 'Escolher vídeo (MP4)' : 'Escolher arquivo (PPTX ou PDF)'}<small>ou arraste aqui · até 50 MB${kind === 'video' ? ' · vídeos maiores: use o YouTube (não listado) ou Vimeo' : ''}</small><input type="file" accept="${accept}"></label>
+      <div class="prog hidden"><i></i></div></div>
+    <div class="m-link"><input type="url" class="m-url" placeholder="${kind === 'video' ? 'https://www.youtube.com/watch?v=… · Vimeo · Google Drive' : 'Link do Google Slides, OneDrive ou PDF'}">
+      <div class="hint" style="margin-top:6px">${kind === 'video' ? 'No YouTube, publique como <b>Não listado</b>: só quem tem o link (a plataforma) consegue assistir.' : 'No Google Slides, compartilhe como "Qualquer pessoa com o link pode ver".'}</div></div>
+    <div class="m-cur"></div>
+  </div>`;
+}
+function mediaPicker(root, kind, init = {}, { onUploaded, saveBtn } = {}) {
+  let media = { url: init.mediaUrl || '', fileName: init.fileName || '', size: init.size || 0 };
+  let mode = media.fileName ? 'file' : media.url ? 'link' : kind === 'video' ? 'link' : 'file';
+  $('.m-url', root).value = media.fileName ? '' : media.url;
+  const showCur = () => {
+    $('.m-cur', root).innerHTML = media.fileName && media.url ? `<div class="cur">📎 <a href="${esc(media.url)}" target="_blank" rel="noopener">${esc(media.fileName)}</a> <span class="hint">${fmtSize(media.size)}</span>
+      <button type="button" class="xbtn" data-mclear title="Remover arquivo" style="margin-left:auto">×</button></div>` : '';
+    $('[data-mclear]', root)?.addEventListener('click', () => { media = { url: '', fileName: '', size: 0 }; showCur(); root.dispatchEvent(new Event('mediachange', { bubbles: true })); });
+  };
+  const setMode = (m) => {
+    mode = m;
+    $$('[data-mode]', root).forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
+    $('.m-file', root).classList.toggle('hidden', m !== 'file'); $('.m-link', root).classList.toggle('hidden', m !== 'link'); $('.m-cur', root).classList.toggle('hidden', m !== 'file');
+    root.dispatchEvent(new Event('mediachange', { bubbles: true }));
+  };
+  $$('[data-mode]', root).forEach((b) => b.onclick = () => setMode(b.dataset.mode));
+  $('.m-url', root).addEventListener('input', () => root.dispatchEvent(new Event('mediachange', { bubbles: true })));
+  setMode(mode); showCur();
+  dropzone($('.drop', root), async (file) => {
+    const bar = $('.prog', root); bar.classList.remove('hidden'); $('i', bar).style.width = '0';
+    const btn = saveBtn && $(saveBtn); if (btn) btn.disabled = true;
+    try {
+      const url = await upload(file, kind, file.name, $('i', bar));
+      media = { url, fileName: file.name, size: file.size }; showCur();
+      onUploaded?.(file); toast('Arquivo enviado');
+      root.dispatchEvent(new Event('mediachange', { bubbles: true }));
+    } catch (x) { toast(x.message, true); } finally { bar.classList.add('hidden'); if (btn) btn.disabled = false; }
+  });
+  return {
+    // o que vai para o servidor; vazio se nada foi escolhido
+    get: () => mode === 'file' ? (media.fileName ? { mediaUrl: media.url, fileName: media.fileName, size: media.size } : { mediaUrl: '' })
+      : { mediaUrl: $('.m-url', root).value.trim(), fileName: '', size: 0 },
+    filled() { return !!this.get().mediaUrl; },
+  };
+}
+
+function quizBuilderHtml() {
+  return `<div class="qbw"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font:700 12px 'Montserrat';color:var(--muted);text-transform:uppercase;flex:1">Perguntas <span class="hint">· marque o círculo da alternativa correta</span></span>
+      <button type="button" class="btn btn-ghost btn-sm" data-qimport>Importar de texto</button></div>
+    <div class="qb"></div>
+    <button type="button" class="btn btn-ghost" data-qadd style="margin-top:12px">+ Adicionar pergunta</button></div>`;
+}
+function quizBuilder(root, questions) {
+  const quiz = { questions: JSON.parse(JSON.stringify(questions || [])) };
+  const uid = ++UID;
+  const qb = $('.qb', root);
+  const render = () => {
+    qb.innerHTML = quiz.questions.map((q, qi) => `<div class="qcard" data-q="${qi}">
+      <div class="qh"><b>Pergunta ${qi + 1}</b>
+        <button type="button" class="btn btn-ghost btn-sm btn-ic" data-qmove="-1" ${qi === 0 ? 'disabled' : ''} title="Subir">${I.up}</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-ic" data-qmove="1" ${qi === quiz.questions.length - 1 ? 'disabled' : ''} title="Descer">${I.down}</button>
+        <button type="button" class="xbtn" data-qdel title="Remover pergunta">×</button></div>
+      <textarea class="qtext" rows="2" style="min-height:44px" placeholder="Enunciado da pergunta">${esc(q.text)}</textarea>
+      ${q.options.map((o, oi) => `<div class="optrow ${q.correct === oi ? 'right' : ''}">
+        <input type="radio" name="c${uid}-${qi}" value="${oi}" ${q.correct === oi ? 'checked' : ''} title="Alternativa correta">
+        <span class="l">${LETTERS[oi]}</span><input type="text" class="otext" value="${esc(o)}" placeholder="Alternativa ${LETTERS[oi]}">
+        <button type="button" class="xbtn" data-odel="${oi}" title="Remover alternativa" ${q.options.length <= 2 ? 'disabled style="visibility:hidden"' : ''}>×</button></div>`).join('')}
+      ${q.options.length < 8 ? '<div style="margin-top:9px"><button type="button" class="btn btn-ghost btn-sm" data-oadd>+ Alternativa</button></div>' : ''}
+      <input type="text" class="qexp" style="margin-top:9px;font-size:13px" value="${esc(q.explanation)}" placeholder="Explicação mostrada após responder (opcional)">
+    </div>`).join('') || '<div class="empty" style="padding:16px">Nenhuma pergunta.</div>';
+  };
+  const sync = () => {
+    $$('.qcard', qb).forEach((c) => {
+      const q = quiz.questions[+c.dataset.q];
+      q.text = $('.qtext', c).value; q.explanation = $('.qexp', c).value;
+      q.options = $$('.otext', c).map((i) => i.value);
+      const r = $('input[type=radio]:checked', c); q.correct = r ? +r.value : null;
+    });
+  };
+  qb.onchange = (e) => { if (e.target.type === 'radio') { sync(); render(); } };
+  qb.onclick = (e) => {
+    const card = e.target.closest('.qcard'), t = e.target.closest('button'); if (!card || !t) return;
+    const qi = +card.dataset.q; sync();
+    const q = quiz.questions[qi];
+    if (t.dataset.qdel != null) quiz.questions.splice(qi, 1);
+    else if (t.dataset.qmove) { const j = qi + +t.dataset.qmove; [quiz.questions[qi], quiz.questions[j]] = [quiz.questions[j], quiz.questions[qi]]; }
+    else if (t.dataset.oadd != null) q.options.push('');
+    else if (t.dataset.odel != null) { const oi = +t.dataset.odel; q.options.splice(oi, 1); if (q.correct === oi) q.correct = null; else if (q.correct > oi) q.correct--; }
+    else return;
+    render();
+  };
+  $('[data-qadd]', root).onclick = () => { sync(); quiz.questions.push(blankQ()); render(); $$('.qcard', qb).pop().querySelector('textarea').focus(); };
+  $('[data-qimport]', root).onclick = () => importQuiz((parsed, replace) => {
+    sync();
+    const isBlank = (q) => !q.text.trim() && q.options.every((o) => !o.trim());
+    if (replace) quiz.questions.length = 0;
+    else quiz.questions = quiz.questions.filter((q) => !isBlank(q)); // as perguntas vazias de modelo dão lugar às importadas
+    parsed.forEach((q) => { while (q.options.length < 2) q.options.push(''); quiz.questions.push({ ...q, options: q.options.slice(0, 8) }); });
+    render();
+  });
+  render();
+  return {
+    // perguntas totalmente em branco são ignoradas
+    get() { sync(); return quiz.questions.filter((q) => q.text.trim() || q.options.some((o) => o.trim())); },
+  };
+}
+
+/* ---------- Treinamento: novo (com vídeo, apresentação e quiz) ou editar dados ---------- */
 function trainingModal(t) {
   const isNew = !t; t = t || { published: true };
-  let cover = t.coverUrl || null;
   const areas = [...new Set(TR.map((x) => x.area).filter(Boolean))];
-  openModal(`<header><h3>${isNew ? 'Novo treinamento' : 'Editar treinamento'}</h3><button class="x" data-close aria-label="Fechar">×</button></header>
-    <div class="body"><div class="form-grid">
+  const dados = `<div class="form-grid">
       <label class="f full">Título *<input type="text" id="tTitle" value="${esc(t.title)}" maxlength="140" placeholder="Ex.: Vesselin — Treinamento de produto"></label>
       <label class="f">Produto<input type="text" id="tProd" value="${esc(t.product)}" maxlength="120"></label>
       <label class="f">Fabricante<input type="text" id="tMfr" value="${esc(t.manufacturer)}" maxlength="60"></label>
       <label class="f">Área<input type="text" id="tArea" value="${esc(t.area)}" maxlength="60" list="areaList" placeholder="Ex.: Cardiologia, Endovascular"><datalist id="areaList">${areas.map((a) => `<option value="${esc(a)}">`).join('')}</datalist></label>
       <label class="f" style="justify-content:flex-end"><span></span><label class="check"><input type="checkbox" id="tPub" ${t.published ? 'checked' : ''}> Publicado (visível para os participantes)</label></label>
       <label class="f full">Descrição<textarea id="tDesc" maxlength="1200" placeholder="O que o participante vai aprender">${esc(t.description)}</textarea></label>
-      <div class="full"><label class="f" style="margin-bottom:6px">Capa <span class="hint">opcional · JPG ou PNG, de preferência horizontal (16:9). Sem capa, usamos um fundo da marca com o título.</span></label>
-        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-          <img id="cPrev" class="thumb" style="width:160px;height:86px;${cover ? '' : 'display:none'}" src="${esc(cover || '')}" alt="">
-          <label class="drop" id="cDrop" style="flex:1;min-width:220px;padding:14px">Escolher imagem<small>ou arraste aqui</small><input type="file" accept="image/jpeg,image/png,image/webp"></label>
-          <button class="btn btn-ghost btn-sm ${cover ? '' : 'hidden'}" id="cRm">Remover capa</button>
-        </div><div class="prog hidden" id="cProg"><i></i></div></div>
-    </div></div>
-    <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="tSave">${isNew ? 'Criar treinamento' : 'Salvar'}</button></footer>`);
-  dropzone($('#cDrop'), async (file) => {
-    const bar = $('#cProg'); bar.classList.remove('hidden');
-    try {
-      const jpg = await toJpeg(file);
-      cover = await upload(jpg, 'capa', (file.name.replace(/\.[^.]+$/, '') || 'capa') + '.jpg', $('i', bar));
-      $('#cPrev').src = cover; $('#cPrev').style.display = ''; $('#cRm').classList.remove('hidden');
-    } catch (x) { toast(x.message, true); } finally { bar.classList.add('hidden'); }
-  });
-  $('#cRm').onclick = () => { cover = null; $('#cPrev').style.display = 'none'; $('#cRm').classList.add('hidden'); };
+    </div>`;
+
+  if (!isNew) {
+    openModal(`<header><h3>Editar dados do treinamento</h3><button class="x" data-close aria-label="Fechar">×</button></header>
+      <div class="body">${dados}<p class="hint" style="margin:14px 0 0">Vídeos, apresentações e quizzes são editados na lista de aulas do treinamento.</p></div>
+      <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="tSave">Salvar</button></footer>`);
+    $('#tSave').onclick = async () => {
+      const b = $('#tSave'); b.disabled = true;
+      try { await api('saveTraining', { id: t.id, ...readDados() }); $('#ov').classList.remove('open'); renderTrein(); toast('Salvo'); }
+      catch (x) { toast(x.message, true); b.disabled = false; }
+    };
+    return $('#tTitle').focus();
+  }
+
+  openModal(`<header><h3>Novo treinamento</h3><button class="x" data-close aria-label="Fechar">×</button></header>
+    <nav class="mtabs">
+      <button type="button" class="on" data-pane="dados"><span class="dot">1</span> Dados</button>
+      <button type="button" data-pane="video"><span class="dot">2</span> Vídeo</button>
+      <button type="button" data-pane="apres"><span class="dot">3</span> Apresentação</button>
+      <button type="button" data-pane="quiz"><span class="dot">4</span> Quiz</button>
+    </nav>
+    <div class="body">
+      <div class="pane" data-p="dados">${dados}</div>
+      <div class="pane hidden" data-p="video">
+        <div class="form-grid">
+          <label class="f">Título da aula<input type="text" id="vTitle" maxlength="140" placeholder="Vídeo de treinamento"></label>
+          <label class="f">Duração (min)<input type="number" id="vDur" min="0" max="999"></label>
+          <div class="full" id="vPick">${mediaPickerHtml('video')}</div>
+        </div>
+        <p class="hint" style="margin:12px 0 0">Opcional. Você pode adicionar mais vídeos depois, na lista de aulas.</p>
+      </div>
+      <div class="pane hidden" data-p="apres">
+        <div class="form-grid">
+          <label class="f full">Título da aula<input type="text" id="aTitle" maxlength="140" placeholder="Apresentação do produto"></label>
+          <div class="full" id="aPick">${mediaPickerHtml('apresentacao')}</div>
+        </div>
+        <p class="hint" style="margin:12px 0 0">Opcional. Aceita PowerPoint (PPTX) ou PDF.</p>
+      </div>
+      <div class="pane hidden" data-p="quiz">
+        <div class="form-grid" style="margin-bottom:14px">
+          <label class="f">Título do quiz<input type="text" id="qTitle" maxlength="140" placeholder="Quiz do produto"></label>
+          <label class="f">Nota mínima para aprovação (%)<input type="number" id="qPass" min="0" max="100" value="70"></label>
+        </div>
+        <div id="qPick">${quizBuilderHtml()}</div>
+      </div>
+    </div>
+    <footer><span class="hint" id="tSum" style="margin-right:auto;align-self:center"></span><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="tSave">Criar treinamento</button></footer>`, true);
+
+  const tabs = $$('.mtabs button');
+  const show = (p) => { tabs.forEach((b) => b.classList.toggle('on', b.dataset.pane === p)); $$('.pane').forEach((x) => x.classList.toggle('hidden', x.dataset.p !== p)); };
+  tabs.forEach((b) => b.onclick = () => show(b.dataset.pane));
+  const vid = mediaPicker($('#vPick'), 'video', {}, { saveBtn: '#tSave' });
+  const apr = mediaPicker($('#aPick'), 'apresentacao', {}, { saveBtn: '#tSave', onUploaded: (f) => { if (!$('#aTitle').value.trim()) $('#aTitle').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); } });
+  const qz = quizBuilder($('#qPick'), Array.from({ length: QUIZ_DEFAULT }, blankQ));
+  const summary = () => {
+    const n = qz.get().length;
+    const parts = [vid.filled() && 'vídeo', apr.filled() && 'apresentação', n && `quiz (${n} ${n === 1 ? 'pergunta' : 'perguntas'})`].filter(Boolean);
+    $('#tSum').textContent = parts.length ? 'Será criado com: ' + parts.join(', ') : 'Sem aulas ainda: dá para adicionar depois';
+    tabs[1].classList.toggle('ok', vid.filled()); tabs[2].classList.toggle('ok', apr.filled()); tabs[3].classList.toggle('ok', n > 0);
+  };
+  $('#modal').addEventListener('mediachange', summary);
+  $('#modal').addEventListener('input', summary);
+  $('#modal').addEventListener('change', summary);
+  summary();
+
   $('#tSave').onclick = async () => {
-    const b = $('#tSave'); b.disabled = true;
+    const d = readDados();
+    if (!d.title.trim()) { show('dados'); $('#tTitle').focus(); return toast('Informe o título do treinamento.', true); }
+    const nome = d.product.trim() || d.title.trim();
+    const lessons = [];
+    if (vid.filled()) lessons.push({ kind: 'video', title: $('#vTitle').value.trim() || 'Vídeo de treinamento', durationMin: $('#vDur').value, ...vid.get() });
+    if (apr.filled()) lessons.push({ kind: 'apresentacao', title: $('#aTitle').value.trim() || 'Apresentação do produto', ...apr.get() });
+    const questions = qz.get();
+    if (questions.length) {
+      const bad = questions.findIndex((q) => !q.text.trim() || q.options.filter((o) => o.trim()).length < 2 || q.correct == null || !q.options[q.correct]?.trim());
+      if (bad >= 0) { show('quiz'); return toast(`Quiz, pergunta ${bad + 1}: preencha o enunciado, pelo menos 2 alternativas e marque a correta.`, true); }
+      lessons.push({ kind: 'quiz', title: $('#qTitle').value.trim() || `Quiz — ${nome}`, passScore: $('#qPass').value,
+        quiz: { questions: questions.map((q) => {
+          // remove alternativas vazias mantendo a correta no lugar certo
+          const keep = q.options.map((o, i) => [o.trim(), i]).filter(([o]) => o);
+          return { text: q.text, explanation: q.explanation, options: keep.map(([o]) => o), correct: keep.findIndex(([, i]) => i === q.correct) };
+        }) } });
+    }
+    const b = $('#tSave'); b.disabled = true; b.textContent = 'Criando…';
     try {
-      await api('saveTraining', { id: t.id, title: $('#tTitle').value, product: $('#tProd').value, manufacturer: $('#tMfr').value, area: $('#tArea').value,
-        description: $('#tDesc').value, published: $('#tPub').checked, coverUrl: cover });
-      if (isNew) OPEN = TR[TR.length - 1]?.id || null;
-      $('#ov').classList.remove('open'); renderTrein(); toast(isNew ? 'Treinamento criado. Agora adicione as aulas.' : 'Salvo');
-    } catch (x) { toast(x.message, true); b.disabled = false; }
+      const r = await api('createFull', { ...d, lessons });
+      OPEN = r.createdId || null;
+      $('#ov').classList.remove('open'); renderTrein();
+      toast(lessons.length ? `Treinamento criado com ${lessons.length} ${lessons.length === 1 ? 'aula' : 'aulas'}` : 'Treinamento criado. Adicione as aulas.');
+    } catch (x) { toast(x.message, true); b.disabled = false; b.textContent = 'Criar treinamento'; }
   };
   $('#tTitle').focus();
 }
+function readDados() {
+  return { title: $('#tTitle').value, product: $('#tProd').value, manufacturer: $('#tMfr').value, area: $('#tArea').value, description: $('#tDesc').value, published: $('#tPub').checked };
+}
 
-/* ---------- Aulas ---------- */
+/* ---------- Aula avulsa (na lista de aulas) ---------- */
 function lessonModal(a) {
   const isNew = !a.id, kind = a.kind;
-  let media = { url: a.mediaUrl || '', fileName: a.fileName || '', size: a.size || 0 };
-  let mode = media.fileName || (isNew && kind === 'apresentacao') ? 'file' : media.url ? 'link' : (kind === 'video' ? 'link' : 'file');
-  const quiz = { questions: JSON.parse(JSON.stringify(a.quiz?.questions || [])) };
-  if (kind === 'quiz' && !quiz.questions.length) quiz.questions.push({ text: '', options: ['', '', '', ''], correct: null, explanation: '' });
-  const accept = kind === 'video' ? '.mp4,.webm,.mov,video/mp4,video/webm,video/quicktime' : '.pptx,.ppt,.pdf';
-
-  const mediaBlock = kind === 'quiz' ? '' : `<div class="full">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
-        <span class="f" style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase">${kind === 'video' ? 'Vídeo' : 'Apresentação'} *</span>
-        <div class="seg"><button type="button" data-mode="file">Enviar arquivo</button><button type="button" data-mode="link">Colar link</button></div>
-      </div>
-      <div id="mFile"><label class="drop" id="mDrop">${kind === 'video' ? 'Escolher vídeo (MP4)' : 'Escolher arquivo (PPTX ou PDF)'}<small>ou arraste aqui · até 50 MB${kind === 'video' ? ' · vídeos maiores: use o YouTube (não listado) ou Vimeo' : ''}</small><input type="file" accept="${accept}"></label>
-        <div class="prog hidden" id="mProg"><i></i></div></div>
-      <div id="mLink"><input type="url" id="mUrl" placeholder="${kind === 'video' ? 'https://www.youtube.com/watch?v=… · Vimeo · Google Drive' : 'Link do Google Slides, OneDrive ou PDF'}" value="${esc(media.fileName ? '' : media.url)}">
-        <div class="hint" style="margin-top:6px">${kind === 'video' ? 'No YouTube, publique como <b>Não listado</b>: só quem tem o link (a plataforma) consegue assistir.' : 'No Google Slides, compartilhe como "Qualquer pessoa com o link pode ver".'}</div></div>
-      <div id="mCur"></div>
-    </div>`;
-
   openModal(`<header><h3>${isNew ? 'Nova aula' : 'Editar aula'} · ${KIND[kind]}</h3><button class="x" data-close aria-label="Fechar">×</button></header>
     <div class="body"><div class="form-grid">
-      <label class="f ${kind === 'video' ? '' : 'full'}">Título *<input type="text" id="lTitle" value="${esc(a.title)}" maxlength="140" placeholder="${kind === 'quiz' ? 'Ex.: Avaliação — Vesselin' : kind === 'video' ? 'Ex.: Indicações e técnica de implante' : 'Ex.: Apresentação técnica do produto'}"></label>
+      <label class="f ${kind === 'video' ? '' : 'full'}">Título *<input type="text" id="lTitle" value="${esc(a.title)}" maxlength="140" placeholder="${kind === 'quiz' ? 'Ex.: Quiz — Vesselin' : kind === 'video' ? 'Ex.: Indicações e técnica de implante' : 'Ex.: Apresentação técnica do produto'}"></label>
       ${kind === 'video' ? `<label class="f">Duração (min)<input type="number" id="lDur" min="0" max="999" value="${a.durationMin ?? ''}"></label>` : ''}
       <label class="f full">${kind === 'quiz' ? 'Instruções' : 'Descrição'} <span class="hint">opcional</span><textarea id="lDesc" maxlength="1200" style="min-height:56px">${esc(a.description)}</textarea></label>
-      ${mediaBlock}
       ${kind === 'quiz' ? `<label class="f">Nota mínima para aprovação (%)<input type="number" id="lPass" min="0" max="100" value="${a.passScore ?? 70}"></label>
-        <div class="full"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font:700 12px 'Montserrat';color:var(--muted);text-transform:uppercase;flex:1">Perguntas <span class="hint">· marque o círculo da alternativa correta</span></span>
-          <button type="button" class="btn btn-ghost btn-sm" id="qImport">Importar de texto</button></div>
-          <div class="qb" id="qb"></div>
-          <button type="button" class="btn btn-ghost" id="qAdd" style="margin-top:12px">+ Adicionar pergunta</button></div>` : ''}
+        <div class="full" id="lQuiz">${quizBuilderHtml()}</div>`
+      : `<div class="full"><span style="display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">${KIND[kind]} *</span><div id="lPick">${mediaPickerHtml(kind)}</div></div>`}
     </div></div>
     <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="lSave">${isNew ? 'Adicionar aula' : 'Salvar'}</button></footer>`, kind === 'quiz');
 
-  if (kind !== 'quiz') {
-    const showCur = () => {
-      $('#mCur').innerHTML = media.fileName && media.url ? `<div class="cur">📎 <a href="${esc(media.url)}" target="_blank" rel="noopener">${esc(media.fileName)}</a> <span class="hint">${fmtSize(media.size)}</span></div>` : '';
-    };
-    const setMode = (m) => { mode = m; $$('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === m)); $('#mFile').classList.toggle('hidden', m !== 'file'); $('#mLink').classList.toggle('hidden', m !== 'link'); $('#mCur').classList.toggle('hidden', m !== 'file'); };
-    $$('[data-mode]').forEach((b) => b.onclick = () => setMode(b.dataset.mode));
-    setMode(mode); showCur();
-    dropzone($('#mDrop'), async (file) => {
-      const bar = $('#mProg'); bar.classList.remove('hidden'); $('i', bar).style.width = '0';
-      const btn = $('#lSave'); btn.disabled = true;
-      try {
-        const url = await upload(file, kind, file.name, $('i', bar));
-        media = { url, fileName: file.name, size: file.size }; showCur();
-        if (!$('#lTitle').value.trim()) $('#lTitle').value = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
-        toast('Arquivo enviado');
-      } catch (x) { toast(x.message, true); } finally { bar.classList.add('hidden'); btn.disabled = false; }
-    });
-  } else {
-    renderQB(quiz);
-    $('#qAdd').onclick = () => { syncQB(quiz); quiz.questions.push({ text: '', options: ['', '', '', ''], correct: null, explanation: '' }); renderQB(quiz); $$('.qcard').pop().querySelector('textarea').focus(); };
-    $('#qImport').onclick = () => importQuiz(quiz);
-  }
+  const pick = kind !== 'quiz' && mediaPicker($('#lPick'), kind, a, { saveBtn: '#lSave',
+    onUploaded: (f) => { if (!$('#lTitle').value.trim()) $('#lTitle').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); } });
+  const qz = kind === 'quiz' && quizBuilder($('#lQuiz'), a.quiz?.questions?.length ? a.quiz.questions : Array.from({ length: QUIZ_DEFAULT }, blankQ));
 
   $('#lSave').onclick = async () => {
     const b = $('#lSave'); b.disabled = true;
     const item = { id: a.id, treinamentoId: a.treinamentoId, kind, title: $('#lTitle').value, description: $('#lDesc').value, durationMin: $('#lDur')?.value };
-    if (kind === 'quiz') { syncQB(quiz); item.quiz = quiz; item.passScore = $('#lPass').value; }
-    else if (mode === 'file') Object.assign(item, { mediaUrl: media.fileName ? media.url : '', fileName: media.fileName, size: media.size });
-    else item.mediaUrl = $('#mUrl').value.trim();
+    if (kind === 'quiz') { item.quiz = { questions: qz.get() }; item.passScore = $('#lPass').value; }
+    else Object.assign(item, pick.get());
     try { await api('saveLesson', item); $('#ov').classList.remove('open'); renderDetail(); toast(isNew ? 'Aula adicionada' : 'Salvo'); }
     catch (x) { toast(x.message, true); b.disabled = false; }
   };
   $('#lTitle').focus();
-}
-
-function renderQB(quiz) {
-  $('#qb').innerHTML = quiz.questions.map((q, qi) => `<div class="qcard" data-q="${qi}">
-    <div class="qh"><b>Pergunta ${qi + 1}</b>
-      <button type="button" class="btn btn-ghost btn-sm btn-ic" data-qmove="-1" ${qi === 0 ? 'disabled' : ''} title="Subir">${I.up}</button>
-      <button type="button" class="btn btn-ghost btn-sm btn-ic" data-qmove="1" ${qi === quiz.questions.length - 1 ? 'disabled' : ''} title="Descer">${I.down}</button>
-      <button type="button" class="xbtn" data-qdel title="Remover pergunta">×</button></div>
-    <textarea class="qtext" rows="2" style="min-height:44px" placeholder="Enunciado da pergunta">${esc(q.text)}</textarea>
-    ${q.options.map((o, oi) => `<div class="optrow ${q.correct === oi ? 'right' : ''}">
-      <input type="radio" name="c${qi}" value="${oi}" ${q.correct === oi ? 'checked' : ''} title="Alternativa correta">
-      <span class="l">${LETTERS[oi]}</span><input type="text" class="otext" value="${esc(o)}" placeholder="Alternativa ${LETTERS[oi]}">
-      <button type="button" class="xbtn" data-odel="${oi}" title="Remover alternativa" ${q.options.length <= 2 ? 'disabled style="visibility:hidden"' : ''}>×</button></div>`).join('')}
-    <div style="display:flex;gap:10px;align-items:center;margin-top:9px">
-      ${q.options.length < 8 ? '<button type="button" class="btn btn-ghost btn-sm" data-oadd>+ Alternativa</button>' : ''}
-    </div>
-    <input type="text" class="qexp" style="margin-top:9px;font-size:13px" value="${esc(q.explanation)}" placeholder="Explicação mostrada após responder (opcional)">
-  </div>`).join('');
-  const qb = $('#qb');
-  qb.onchange = (e) => { if (e.target.type === 'radio') { syncQB(quiz); renderQB(quiz); } };
-  qb.onclick = (e) => {
-    const card = e.target.closest('.qcard'); if (!card) return;
-    const qi = +card.dataset.q, t = e.target.closest('button'); if (!t) return;
-    syncQB(quiz);
-    const q = quiz.questions[qi];
-    if (t.dataset.qdel != null) { if (quiz.questions.length > 1 || confirm('Remover a única pergunta?')) quiz.questions.splice(qi, 1); }
-    else if (t.dataset.qmove) { const j = qi + +t.dataset.qmove; [quiz.questions[qi], quiz.questions[j]] = [quiz.questions[j], quiz.questions[qi]]; }
-    else if (t.dataset.oadd != null) q.options.push('');
-    else if (t.dataset.odel != null) { const oi = +t.dataset.odel; q.options.splice(oi, 1); if (q.correct === oi) q.correct = null; else if (q.correct > oi) q.correct--; }
-    else return;
-    renderQB(quiz);
-  };
-}
-function syncQB(quiz) {
-  $$('.qcard').forEach((c) => {
-    const q = quiz.questions[+c.dataset.q];
-    q.text = $('.qtext', c).value; q.explanation = $('.qexp', c).value;
-    q.options = $$('.otext', c).map((i) => i.value);
-    const r = $('input[type=radio]:checked', c); q.correct = r ? +r.value : null;
-  });
 }
 
 // Formato: "1. Pergunta" / "a) alternativa" / "*b) correta" / "> explicação"
@@ -532,7 +627,7 @@ function parseQuizText(txt) {
   });
   return out;
 }
-function importQuiz(quiz) {
+function importQuiz(onImport) {
   const ov = document.createElement('div'); ov.className = 'overlay open'; ov.style.zIndex = 60;
   ov.innerHTML = `<div class="modal"><header><h3>Importar perguntas de texto</h3><button class="x" data-x>×</button></header>
     <div class="body"><p style="margin:0 0 6px">Cole as perguntas neste formato (marque a correta com <b>*</b> ou escreva <b>(correta)</b> no fim; a linha com <b>&gt;</b> é a explicação, opcional):</p>
@@ -546,7 +641,7 @@ c) Outra alternativa
 a) …</pre>
     <textarea id="impTxt" style="min-height:220px;font-family:ui-monospace,Menlo,monospace;font-size:13px" placeholder="Cole aqui"></textarea>
     <div class="hint" id="impInfo" style="margin-top:8px"></div>
-    <label class="check" style="margin-top:10px"><input type="checkbox" id="impRepl"> Substituir as perguntas atuais (senão, adiciona ao final)</label></div>
+    <label class="check" style="margin-top:10px"><input type="checkbox" id="impRepl"> Substituir as perguntas já escritas (senão, adiciona ao final)</label></div>
     <footer><button class="btn btn-ghost" data-x>Cancelar</button><button class="btn btn-primary" id="impOk" disabled>Importar</button></footer></div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();
@@ -558,13 +653,7 @@ a) …</pre>
     $('#impInfo', ov).innerHTML = parsed.length ? `${parsed.length} pergunta(s) reconhecida(s)${bad ? ` · <b style="color:var(--red)">${bad} sem alternativa correta marcada ou com menos de 2 alternativas</b> (você pode corrigir depois)` : ' · tudo certo'}` : '';
     $('#impOk', ov).disabled = !parsed.length;
   };
-  $('#impOk', ov).onclick = () => {
-    syncQB(quiz);
-    const blank = quiz.questions.length === 1 && !quiz.questions[0].text.trim() && quiz.questions[0].options.every((o) => !o.trim());
-    if ($('#impRepl', ov).checked || blank) quiz.questions.length = 0;
-    parsed.forEach((q) => { if (q.options.length < 2) while (q.options.length < 2) q.options.push(''); quiz.questions.push({ ...q, options: q.options.slice(0, 8) }); });
-    renderQB(quiz); close(); toast(`${parsed.length} pergunta(s) importada(s)`);
-  };
+  $('#impOk', ov).onclick = () => { onImport(parsed, $('#impRepl', ov).checked); close(); toast(`${parsed.length} pergunta(s) importada(s)`); };
   $('#impTxt', ov).focus();
 }
 

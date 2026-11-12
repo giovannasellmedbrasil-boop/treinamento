@@ -1,4 +1,4 @@
-import { clean, freeSlug, getLesson, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
+import { clean, freeSlug, pool, getLesson, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
 
 const isHttp = (u) => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u) && u.length <= 1000;
 
@@ -23,8 +23,11 @@ function cleanQuiz(quiz) {
   return {
     questions: qs.map((x, i) => {
       const text = clean(x.text, 1000);
-      const options = (Array.isArray(x.options) ? x.options : []).map((o) => clean(o, 400)).filter(Boolean);
-      const correct = x.correct == null || x.correct === '' ? NaN : Number(x.correct);
+      // alternativas vazias são descartadas; o índice da correta acompanha a nova posição
+      const raw = (Array.isArray(x.options) ? x.options : []).map((o) => clean(o, 400));
+      const options = raw.filter(Boolean);
+      const ci = x.correct == null || x.correct === '' ? NaN : Number(x.correct);
+      const correct = Number.isInteger(ci) && raw[ci] ? raw.slice(0, ci).filter(Boolean).length : NaN;
       if (!text) throw new Error(`Pergunta ${i + 1}: escreva o enunciado.`);
       if (options.length < 2 || options.length > 8) throw new Error(`Pergunta ${i + 1}: use de 2 a 8 alternativas.`);
       if (!Number.isInteger(correct) || correct < 0 || correct >= options.length) throw new Error(`Pergunta ${i + 1}: marque a alternativa correta.`);
@@ -116,6 +119,31 @@ export default async function handler(req, res) {
           [await freeSlug(slugify(f.title)), f.title, f.description, f.product, f.area, f.manufacturer, f.coverUrl, f.published,
             f.sortOrder ?? await nextOrder('treinamentos')]);
       }
+    } else if (action === 'createFull') {
+      // treinamento novo já com vídeo, apresentação e quiz, tudo ou nada
+      const f = trainingFields(item);
+      if (!f.title) return res.status(400).json({ error: 'Informe o título do treinamento.' });
+      let lessons;
+      try { lessons = (Array.isArray(item.lessons) ? item.lessons : []).slice(0, 20).map(lessonFields); }
+      catch (e) { return res.status(400).json({ error: e.message }); }
+      const slug = await freeSlug(slugify(f.title)), order = f.sortOrder ?? await nextOrder('treinamentos');
+      const c = await pool.connect();
+      let createdId;
+      try {
+        await c.query('begin');
+        createdId = (await c.query(`insert into public.treinamentos (slug, title, description, product, area, manufacturer, cover_url, published, sort_order)
+                 values ($1,$2,$3,$4,$5,$6,null,$7,$8) returning id`,
+          [slug, f.title, f.description, f.product, f.area, f.manufacturer, f.published, order])).rows[0].id;
+        for (let i = 0; i < lessons.length; i++) {
+          const l = lessons[i];
+          await c.query(`insert into public.aulas (treinamento_id, kind, title, description, media_url, file_name, size, duration_min, quiz, pass_score, sort_order)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [createdId, l.kind, l.title, l.description, l.mediaUrl, l.fileName, l.size, l.durationMin, l.quiz && JSON.stringify(l.quiz), l.passScore, (i + 1) * 10]);
+        }
+        await c.query('commit');
+      } catch (e) { await c.query('rollback').catch(() => {}); throw e; }
+      finally { c.release(); }
+      return res.status(200).json({ treinamentos: await listTrainings(), createdId });
     } else if (action === 'deleteTraining') {
       const old = isUuid(item.id) && (await listTrainings()).find((t) => t.id === item.id);
       if (!old) return res.status(404).json({ error: 'Treinamento não encontrado.' });
