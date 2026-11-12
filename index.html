@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Treinamentos · Sellmed Brasil</title>
+<meta name="description" content="Plataforma de treinamentos sobre os produtos da Sellmed Brasil: vídeos, apresentações e quizzes.">
+<meta name="theme-color" content="#0C2F79">
+<link rel="icon" href="assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0C2F79; --teal:#1EA4A8; --green:#73CC6E; --green-dk:#3E9A3A;
+    --teal-soft:#EAF6F6; --navy-soft:#EDF1FA; --green-soft:#E9F7E8;
+    --bg:#FAFBFB; --surface:#FFFFFF; --border:#E2E8EC; --hover:#F2F6F8;
+    --ink:#1D2939; --text:#5B6772; --muted:#858683; --red:#B8372F; --red-bg:#FCEDEC;
+    --grad:linear-gradient(90deg,#0C2F79 0%,#1EA4A8 50%,#73CC6E 100%);
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);font-family:'Inter',Arial,sans-serif;color:var(--text);font-size:14.5px;min-height:100vh;display:flex;flex-direction:column;}
+  h1,h2,h3,h4,h5{font-family:'Montserrat',Arial,sans-serif;}
+  .hidden{display:none !important;}
+  .accent-bar{height:5px;background:var(--grad);}
+  header.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 32px;position:sticky;top:0;z-index:20;}
+  header.topbar .in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:18px;}
+  header.topbar a.brand{display:flex;align-items:center;gap:18px;text-decoration:none;}
+  header.topbar img{height:44px;width:auto;display:block;}
+  header.topbar .sep{width:1px;height:32px;background:var(--border);}
+  header.topbar h1{margin:0;font-size:18px;font-weight:800;color:var(--navy);}
+  header.topbar p{margin:2px 0 0;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
+  header.topbar .spacer{flex:1;}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;font:700 13px 'Montserrat',sans-serif;display:flex;align-items:center;justify-content:center;flex:none;}
+  .user .who{line-height:1.25;} .user .who small{display:block;color:var(--muted);font-size:11.5px;}
+
+  .btn{border:1px solid transparent;border-radius:8px;padding:10px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;white-space:nowrap;background:none;}
+  .btn:disabled{opacity:.55;cursor:wait;}
+  .btn:focus-visible,.chip:focus-visible,.lesson:focus-visible,.opt:focus-within,.card:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  .btn-primary{background:var(--navy);color:#fff;} .btn-primary:hover{filter:brightness(1.18);}
+  .btn-teal{background:var(--teal);color:#fff;} .btn-teal:hover{filter:brightness(1.07);}
+  .btn-green{background:var(--green-dk);color:#fff;} .btn-green:hover{filter:brightness(1.08);}
+  .btn-ghost{background:var(--surface);color:var(--navy);border-color:var(--border);} .btn-ghost:hover{background:var(--hover);}
+  .btn-white{background:#fff;color:var(--navy);} .btn-white:hover{background:var(--teal-soft);}
+  .btn-sm{padding:6px 11px;font-size:12.5px;}
+  .link{background:none;border:none;color:var(--muted);font:600 12.5px 'Inter',sans-serif;cursor:pointer;padding:4px;text-decoration:underline;}
+
+  /* Entrada */
+  .gate{flex:1;display:grid;grid-template-columns:1.1fr 1fr;min-height:calc(100vh - 5px);}
+  .gate .side{background:var(--navy);color:#fff;padding:56px 56px 40px;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+  .gate .side::after{content:"";position:absolute;inset:auto 0 0 0;height:5px;background:var(--grad);}
+  .gate .side .logo{background:#fff;border-radius:12px;padding:10px 16px;align-self:flex-start;}
+  .gate .side .logo img{height:54px;display:block;}
+  .gate .side .kicker{margin:auto 0 12px;font:700 12px 'Montserrat',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);}
+  .gate .side h2{margin:0 0 14px;font-size:36px;line-height:1.15;font-weight:800;letter-spacing:-.4px;max-width:520px;}
+  .gate .side p.lead{margin:0;color:#C9D5EE;font-size:15.5px;line-height:1.6;max-width:500px;}
+  .gate .feats{display:flex;gap:10px;flex-wrap:wrap;margin:26px 0 auto;}
+  .gate .feats span{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;}
+  .gate .side small{margin-top:30px;color:#8FA3CF;font-size:12px;}
+  .gate .form{display:flex;align-items:center;justify-content:center;padding:40px 32px;}
+  .gate form{width:100%;max-width:380px;}
+  .gate form h3{margin:0 0 6px;font-size:22px;color:var(--navy);font-weight:800;}
+  .gate form p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.5;}
+  label.f{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:14px;}
+  label.f input{border:1px solid var(--border);border-radius:9px;padding:11px 13px;font:400 15px 'Inter',sans-serif;color:var(--ink);background:var(--surface);text-transform:none;letter-spacing:0;}
+  label.f input:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  .err{color:var(--red);background:var(--red-bg);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:14px;}
+
+  /* Início */
+  .hero{background:var(--navy);color:#fff;padding:38px 32px 80px;position:relative;overflow:hidden;}
+  .hero::after{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:var(--grad);}
+  .hero .in{max-width:1176px;margin:0 auto;display:flex;gap:40px;align-items:center;flex-wrap:wrap;}
+  .hero .txt{flex:1;min-width:280px;}
+  .hero .kicker{font:700 12px 'Montserrat',sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);margin:0 0 10px;}
+  .hero h2{margin:0 0 8px;font-size:30px;font-weight:800;letter-spacing:-.3px;line-height:1.18;}
+  .hero .lead{margin:0;max-width:600px;color:#C9D5EE;font-size:15px;line-height:1.55;}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;}
+  .stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:14px 18px;min-width:120px;}
+  .stat b{display:block;font:800 26px 'Montserrat',sans-serif;color:#fff;}
+  .stat span{font-size:12px;color:#AEBEE0;font-weight:600;}
+  main{width:100%;max-width:1240px;margin:-44px auto 0;padding:0 32px 72px;position:relative;flex:1;}
+  .searchbox{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 28px rgba(12,47,121,.10);padding:16px;display:flex;flex-direction:column;gap:12px;}
+  .search{position:relative;}
+  .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);}
+  .search input{width:100%;border:1px solid var(--border);border-radius:10px;padding:12px 14px 12px 42px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--bg);}
+  .search input:focus{outline:2px solid var(--teal);outline-offset:1px;background:#fff;}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .chip:hover{border-color:var(--teal);color:var(--navy);}
+  .chip.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .chip .n{opacity:.6;margin-left:4px;font-weight:500;}
+  .section-h{margin:34px 0 14px;font-size:19px;font-weight:800;color:var(--navy);display:flex;align-items:baseline;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--border);position:relative;}
+  .section-h::after{content:"";position:absolute;left:0;bottom:-1px;width:86px;height:3px;background:var(--grad);border-radius:2px;}
+  .section-h small{font:500 13px 'Inter',sans-serif;color:var(--muted);}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .15s,border-color .15s,transform .15s;text-decoration:none;color:inherit;}
+  .card:hover{border-color:#C9E6E7;box-shadow:0 10px 26px rgba(12,47,121,.11);transform:translateY(-2px);}
+  .cover{aspect-ratio:16/8.5;position:relative;overflow:hidden;background:linear-gradient(135deg,#0C2F79 0%,#13659A 55%,#1EA4A8 100%);}
+  .cover img.ph{display:block;width:100%;height:100%;object-fit:cover;}
+  .cover .gen{position:absolute;inset:0;padding:18px 20px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;}
+  .cover .gen::before{content:"";position:absolute;right:-40px;top:-40px;width:190px;height:190px;border-radius:50%;border:26px solid rgba(255,255,255,.07);}
+  .cover .gen b{font:800 19px/1.2 'Montserrat',sans-serif;position:relative;}
+  .cover .gen small{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px;position:relative;}
+  .cover .badge{position:absolute;top:12px;left:12px;background:#fff;color:var(--green-dk);font:700 11px 'Montserrat',sans-serif;border-radius:999px;padding:4px 10px;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .card .info{padding:15px 16px 16px;display:flex;flex-direction:column;flex:1;}
+  .tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px;}
+  .tag{font-size:11px;font-weight:700;color:var(--navy);background:var(--navy-soft);border-radius:5px;padding:2px 8px;}
+  .tag.t{color:#137A7D;background:var(--teal-soft);}
+  .card h4{margin:0;font:700 16px/1.3 'Montserrat',sans-serif;color:var(--navy);}
+  .card p{margin:6px 0 0;font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .kinds{display:flex;gap:12px;margin-top:12px;font-size:12px;color:var(--muted);font-weight:600;flex-wrap:wrap;}
+  .kinds span{display:inline-flex;align-items:center;gap:5px;}
+  .card .foot{margin-top:auto;padding-top:14px;}
+  .bar{height:7px;border-radius:9px;background:#EDF1F4;overflow:hidden;}
+  .bar i{display:block;height:100%;background:var(--grad);border-radius:9px;}
+  .barrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;color:var(--navy);}
+  .barrow .bar{flex:1;}
+  .card .cta{margin-top:12px;display:flex;}
+  .card .cta .btn{flex:1;padding:9px;}
+
+  .empty{margin-top:30px;text-align:center;padding:48px 20px;border:1px dashed var(--border);border-radius:14px;background:var(--surface);color:var(--muted);}
+  .empty b{display:block;color:var(--navy);font-family:'Montserrat',sans-serif;font-size:15px;margin-bottom:6px;}
+  .skeleton{height:330px;border-radius:14px;background:linear-gradient(90deg,#EEF2F4 0%,#F6F8F9 50%,#EEF2F4 100%);background-size:200% 100%;animation:sh 1.2s infinite;}
+  @keyframes sh{to{background-position:-200% 0;}}
+
+  /* Treinamento */
+  .course{width:100%;max-width:1320px;margin:0 auto;padding:22px 32px 60px;flex:1;}
+  .crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap;}
+  .crumb a{color:var(--teal);font-weight:600;text-decoration:none;} .crumb a:hover{text-decoration:underline;}
+  .layout{display:grid;grid-template-columns:330px 1fr;gap:22px;align-items:start;}
+  .side-list{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:sticky;top:86px;}
+  .side-list .head{padding:16px 18px;border-bottom:1px solid var(--border);}
+  .side-list .head small{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--teal);}
+  .side-list .head h3{margin:4px 0 12px;font-size:16.5px;color:var(--navy);line-height:1.3;}
+  .lessons{max-height:calc(100vh - 290px);overflow:auto;padding:6px;}
+  .lesson{display:flex;gap:11px;align-items:flex-start;padding:10px 11px;border-radius:10px;text-decoration:none;color:var(--ink);cursor:pointer;}
+  .lesson:hover{background:var(--hover);}
+  .lesson.on{background:var(--teal-soft);}
+  .lesson .ic{flex:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--navy-soft);color:var(--navy);}
+  .lesson.done .ic{background:var(--green-soft);color:var(--green-dk);}
+  .lesson .t{flex:1;min-width:0;font-size:13.5px;font-weight:600;line-height:1.35;}
+  .lesson .t small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:2px;}
+  .lesson .n{font-size:11px;color:var(--muted);font-weight:700;padding-top:7px;}
+  .cert{margin:6px;padding:12px;border-radius:10px;background:var(--green-soft);color:#2D6E2A;font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:8px;}
+
+  .stage{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;min-width:0;scroll-margin-top:90px;}
+  .stage .top{padding:18px 22px 14px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+  .stage .top .txt{flex:1;min-width:240px;}
+  .stage .kicker{font:700 11px 'Montserrat',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--teal);}
+  .stage h2{margin:4px 0 0;font-size:22px;color:var(--navy);font-weight:800;line-height:1.25;}
+  .stage .desc{padding:0 22px 4px;font-size:14px;line-height:1.6;white-space:pre-line;color:var(--text);}
+  .player{background:#0A1633;aspect-ratio:16/9;position:relative;}
+  .player iframe,.player video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;}
+  .player.doc{aspect-ratio:auto;height:min(76vh,760px);background:#EEF2F5;}
+  .player .note{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#C9D5EE;text-align:center;padding:30px;font-size:14px;line-height:1.5;}
+  .player.doc .note{color:var(--text);}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 22px 20px;border-top:1px solid var(--border);margin-top:14px;}
+  .actions .spacer{flex:1;}
+  .done-pill{display:inline-flex;align-items:center;gap:6px;background:var(--green-soft);color:var(--green-dk);font-weight:700;font-size:13px;padding:8px 13px;border-radius:999px;}
+
+  /* Quiz */
+  .quiz{padding:6px 22px 4px;}
+  .qintro{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 4px;}
+  .qintro div{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted);font-weight:600;}
+  .qintro b{display:block;font:800 18px 'Montserrat',sans-serif;color:var(--navy);}
+  .question{border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:14px;}
+  .question h4{margin:0 0 12px;font:700 15px/1.45 'Montserrat',sans-serif;color:var(--ink);display:flex;gap:10px;}
+  .question h4 .num{flex:none;width:26px;height:26px;border-radius:7px;background:var(--navy);color:#fff;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+  .opt{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:9px;margin-top:8px;cursor:pointer;font-size:14px;line-height:1.45;color:var(--ink);}
+  .opt:hover{border-color:var(--teal);background:#FBFEFE;}
+  .opt input{margin:3px 0 0;accent-color:var(--navy);flex:none;}
+  .opt.sel{border-color:var(--navy);background:var(--navy-soft);}
+  .opt .l{font-weight:700;color:var(--navy);flex:none;}
+  .question.review .opt{cursor:default;}
+  .opt.right{border-color:#9ED79A;background:var(--green-soft);}
+  .opt.wrong{border-color:#EBB4AF;background:var(--red-bg);}
+  .opt .mk{margin-left:auto;font-size:12px;font-weight:700;flex:none;}
+  .opt.right .mk{color:var(--green-dk);} .opt.wrong .mk{color:var(--red);}
+  .explain{margin-top:10px;font-size:13px;background:var(--bg);border-left:3px solid var(--teal);padding:9px 12px;border-radius:0 8px 8px 0;line-height:1.5;}
+  .result{margin:14px 0 4px;border-radius:14px;padding:20px 22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+  .result.ok{background:var(--green-soft);border:1px solid #BFE6BC;}
+  .result.no{background:#FFF7EC;border:1px solid #F3DDB8;}
+  .result .score{font:800 40px 'Montserrat',sans-serif;color:var(--navy);}
+  .result h3{margin:0 0 4px;font-size:18px;color:var(--navy);}
+  .result p{margin:0;font-size:14px;}
+
+  footer.foot{border-top:1px solid var(--border);background:var(--surface);padding:18px 32px;font-size:12.5px;color:var(--muted);}
+  footer.foot .in{max-width:1240px;margin:0 auto;display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  footer.foot .spacer{flex:1;}
+  footer.foot a{color:var(--muted);}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:9px;font-size:13.5px;font-weight:500;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.2);}
+  #toast.err{background:var(--red);}
+
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr;}
+    .side-list{position:static;order:2;} .lessons{max-height:none;} .stage{scroll-margin-top:70px;}
+    .gate{grid-template-columns:1fr;} .gate .side{padding:32px 24px 36px;} .gate .side h2{font-size:27px;} .gate .side .kicker{margin-top:34px;} .gate .feats{margin-bottom:0;}
+  }
+  @media (max-width:640px){
+    header.topbar{padding:10px 16px;} header.topbar .in{gap:10px;} header.topbar img{height:36px;} header.topbar .sep,.user .who{display:none;}
+    header.topbar h1{font-size:15px;} header.topbar p{display:none;}
+    .hero{padding:26px 16px 72px;} .hero h2{font-size:24px;} .stat{min-width:0;flex:1;padding:10px 12px;} .stat b{font-size:21px;}
+    main{padding:0 16px 50px;} .course{padding:16px 16px 50px;}
+    .chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:0 16px 2px;scrollbar-width:none;} .chip{flex:none;}
+    .cards{grid-template-columns:1fr;}
+    .stage .top,.quiz,.stage .desc{padding-left:16px;padding-right:16px;} .actions{padding:14px 16px 16px;}
+    .stage h2{font-size:19px;}
+    .player.doc{height:62vh;}
+    footer.foot{padding:16px;}
+  }
+  @media print{ header.topbar,footer.foot,.accent-bar{display:none;} }
+</style>
+</head>
+<body>
+<div class="accent-bar"></div>
+
+<!-- Entrada do participante -->
+<section class="gate hidden" id="gate">
+  <div class="side">
+    <div class="logo"><img src="assets/logo.svg" alt="Sellmed Brasil"></div>
+    <p class="kicker">Plataforma de Treinamentos</p>
+    <h2>Conheça a fundo cada produto Sellmed</h2>
+    <p class="lead">Assista aos treinamentos, consulte as apresentações e teste o que aprendeu com os quizzes. Seu progresso fica salvo.</p>
+    <div class="feats">
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73CC6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg> Vídeos</span>
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73CC6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Apresentações</span>
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73CC6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Quizzes</span>
+    </div>
+    <small>Sellmed Brasil · Produtos que salvam vidas</small>
+  </div>
+  <div class="form">
+    <form id="gateForm" novalidate>
+      <h3>Acessar treinamentos</h3>
+      <p>Informe seus dados. Use sempre o mesmo e-mail para manter seu progresso em qualquer dispositivo.</p>
+      <div class="err hidden" id="gateErr"></div>
+      <label class="f">Nome completo<input id="gName" autocomplete="name" required></label>
+      <label class="f">E-mail<input id="gEmail" type="email" autocomplete="email" required></label>
+      <label class="f">Área / equipe <span style="text-transform:none;font-weight:500;letter-spacing:0">(opcional)</span><input id="gArea" placeholder="Ex.: Comercial SP, Distribuidor…"></label>
+      <label class="f hidden" id="gCodeWrap">Código de acesso<input id="gCode" autocomplete="off" style="text-transform:uppercase"></label>
+      <button class="btn btn-primary" id="gateBtn" style="width:100%;padding:12px;margin-top:4px">Entrar</button>
+    </form>
+  </div>
+</section>
+
+<div id="shell" class="hidden" style="display:flex;flex-direction:column;flex:1">
+  <header class="topbar">
+    <div class="in">
+      <a class="brand" href="#/">
+        <img src="assets/logo.svg" alt="Sellmed Brasil">
+        <span class="sep"></span>
+        <span><h1>Treinamentos</h1><p>Sellmed Brasil · Produtos que salvam vidas</p></span>
+      </a>
+      <span class="spacer"></span>
+      <div class="user"><span class="who" id="who"></span><span class="avatar" id="avatar"></span><button class="link" id="logout">Sair</button></div>
+    </div>
+  </header>
+  <div id="view" style="flex:1;display:flex;flex-direction:column"></div>
+  <footer class="foot">
+    <div class="in">
+      <span>© <span id="yr"></span> Sellmed Brasil · Uso interno</span>
+      <span class="spacer"></span>
+      <a href="admin.html">Área do administrador</a>
+    </div>
+  </footer>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+const SVG = (d, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const I = {
+  video: SVG('<polygon points="7 4 20 12 7 20 7 4"/>'),
+  apresentacao: SVG('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
+  quiz: SVG('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/>'),
+  check: SVG('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  down: SVG('<path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/>'),
+  ext: SVG('<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
+  next: SVG('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  award: SVG('<circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>'),
+};
+const KIND = { video: 'Vídeo', apresentacao: 'Apresentação', quiz: 'Quiz' };
+const LETTERS = 'ABCDEFGH';
+
+let S = { p: null, trainings: [], done: new Set(), quizzes: new Map() };
+let FILTER = { q: '', area: '' };
+let REQUIRES_CODE = false;
+$('#yr').textContent = new Date().getFullYear();
+
+function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 3000); }
+
+async function api(body) {
+  const r = await fetch('/api/aluno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (d.relogin) { logout(); throw new Error(d.error); }
+  if (!r.ok) throw new Error(d.error || 'Falha na conexão.');
+  return d;
+}
+
+function setData(d) {
+  S.p = d.participante;
+  S.trainings = d.treinamentos || [];
+  S.done = new Set((d.conclusoes || []).map((c) => c.aulaId));
+  S.quizzes = new Map((d.quizzes || []).map((x) => [x.aulaId, x]));
+  store.set('trein.pid', S.p.id);
+  const ini = S.p.name.split(/\s+/).filter(Boolean);
+  $('#avatar').textContent = ((ini[0]?.[0] || '') + (ini.length > 1 ? ini[ini.length - 1][0] : '')).toUpperCase();
+  $('#who').innerHTML = `${esc(S.p.name)}<small>${esc(S.p.email)}</small>`;
+}
+
+const progress = (t) => { const n = t.aulas.length, d = t.aulas.filter((a) => S.done.has(a.id)).length; return { n, d, pct: n ? Math.round((d / n) * 100) : 0 }; };
+
+/* ---------- Entrada ---------- */
+function showGate() { $('#gate').classList.remove('hidden'); $('#shell').classList.add('hidden'); $('#gCodeWrap').classList.toggle('hidden', !REQUIRES_CODE); $('#gName').focus(); }
+function showShell() { $('#gate').classList.add('hidden'); $('#shell').classList.remove('hidden'); }
+function logout() { store.set('trein.pid', null); S = { p: null, trainings: [], done: new Set(), quizzes: new Map() }; showGate(); }
+$('#logout').onclick = logout;
+
+$('#gateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#gateBtn'), err = $('#gateErr');
+  err.classList.add('hidden'); btn.disabled = true; btn.textContent = 'Entrando…';
+  try {
+    setData(await api({ action: 'entrar', name: $('#gName').value, email: $('#gEmail').value, area: $('#gArea').value, code: $('#gCode').value }));
+    showShell(); route();
+  } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
+  finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+});
+
+/* ---------- Início ---------- */
+function cardCover(t, pr) {
+  const badge = pr.n && pr.d === pr.n ? `<span class="badge">${I.check} Concluído</span>` : '';
+  if (t.coverUrl) return `<div class="cover"><img class="ph" src="${esc(t.coverUrl)}" alt="" loading="lazy">${badge}</div>`;
+  return `<div class="cover"><div class="gen"><small>${esc(t.product || t.area || 'Treinamento')}</small><b>${esc(t.title)}</b></div>${badge}</div>`;
+}
+
+function renderHome() {
+  const all = S.trainings;
+  const totalL = all.reduce((a, t) => a + t.aulas.length, 0);
+  const doneL = all.reduce((a, t) => a + progress(t).d, 0);
+  const doneT = all.filter((t) => { const p = progress(t); return p.n && p.d === p.n; }).length;
+  const first = S.p.name.split(/\s+/)[0];
+  const areas = [...new Set(all.map((t) => t.area).filter(Boolean))];
+  const q = norm(FILTER.q);
+  const shown = all.filter((t) => (!FILTER.area || t.area === FILTER.area) &&
+    (!q || norm([t.title, t.product, t.area, t.manufacturer, t.description, ...t.aulas.map((a) => a.title)].join(' ')).includes(q)));
+  const inProgress = shown.filter((t) => { const p = progress(t); return p.d > 0 && p.d < p.n; });
+  const rest = shown.filter((t) => !inProgress.includes(t));
+
+  const card = (t) => {
+    const pr = progress(t);
+    const k = (kind) => t.aulas.filter((a) => a.kind === kind).length;
+    const label = !pr.n ? 'Em breve' : pr.d === pr.n ? 'Revisar' : pr.d ? 'Continuar' : 'Começar';
+    return `<a class="card" href="#/t/${esc(t.slug)}">
+      ${cardCover(t, pr)}
+      <div class="info">
+        <div class="tagrow">${t.area ? `<span class="tag">${esc(t.area)}</span>` : ''}${t.manufacturer ? `<span class="tag t">${esc(t.manufacturer)}</span>` : ''}</div>
+        <h4>${esc(t.title)}</h4>
+        ${t.description ? `<p>${esc(t.description)}</p>` : ''}
+        <div class="kinds">${['video', 'apresentacao', 'quiz'].filter(k).map((x) => `<span>${I[x]} ${k(x)} ${x === 'video' ? (k(x) > 1 ? 'vídeos' : 'vídeo') : x === 'quiz' ? (k(x) > 1 ? 'quizzes' : 'quiz') : (k(x) > 1 ? 'apresentações' : 'apresentação')}</span>`).join('')}</div>
+        <div class="foot">
+          <div class="barrow"><div class="bar"><i style="width:${pr.pct}%"></i></div>${pr.pct}%</div>
+          <div class="cta"><span class="btn ${pr.n && pr.d === pr.n ? 'btn-ghost' : 'btn-primary'}">${label}</span></div>
+        </div>
+      </div>
+    </a>`;
+  };
+
+  $('#view').innerHTML = `
+    <section class="hero"><div class="in">
+      <div class="txt">
+        <p class="kicker">Plataforma de Treinamentos</p>
+        <h2>Olá, ${esc(first)}!</h2>
+        <p class="lead">Escolha um treinamento para assistir aos vídeos, ver as apresentações e responder aos quizzes de cada produto.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>${all.length}</b><span>Treinamentos</span></div>
+        <div class="stat"><b>${totalL ? Math.round((doneL / totalL) * 100) : 0}%</b><span>Seu progresso</span></div>
+        <div class="stat"><b>${doneT}</b><span>Concluídos</span></div>
+      </div>
+    </div></section>
+    <main>
+      <div class="searchbox">
+        <label class="search">${SVG('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', 18)}
+          <input id="q" type="search" placeholder="Buscar treinamento, produto ou fabricante…" value="${esc(FILTER.q)}" autocomplete="off" aria-label="Buscar treinamento"></label>
+        ${areas.length > 1 ? `<div class="chips">${[['', 'Todas as áreas', all.length], ...areas.map((a) => [a, a, all.filter((t) => t.area === a).length])]
+          .map(([v, l, n]) => `<button class="chip ${FILTER.area === v ? 'active' : ''}" data-area="${esc(v)}">${esc(l)}<span class="n">${n}</span></button>`).join('')}</div>` : ''}
+      </div>
+      ${!all.length ? '<div class="empty"><b>Nenhum treinamento publicado ainda</b>Os treinamentos aparecerão aqui assim que forem adicionados.</div>'
+        : !shown.length ? '<div class="empty"><b>Nenhum treinamento encontrado</b>Tente outro termo de busca ou limpe os filtros.</div>'
+        : (inProgress.length ? `<h3 class="section-h">Continue de onde parou <small>${inProgress.length}</small></h3><div class="cards">${inProgress.map(card).join('')}</div>` : '') +
+          (rest.length ? `<h3 class="section-h">${inProgress.length ? 'Outros treinamentos' : 'Treinamentos disponíveis'} <small>${rest.length}</small></h3><div class="cards">${rest.map(card).join('')}</div>` : '')}
+    </main>`;
+  const qi = $('#q');
+  qi.addEventListener('input', () => { FILTER.q = qi.value; const pos = qi.selectionStart; renderHome(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
+}
+
+/* ---------- Mídia ---------- */
+function embedUrl(u) {
+  let m;
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/))) return `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0&modestbranding=1`;
+  if ((m = u.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([\w]+))?/))) return `https://player.vimeo.com/video/${m[1]}${m[2] ? '?h=' + m[2] : ''}`;
+  if ((m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/))) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  if ((m = u.match(/docs\.google\.com\/presentation\/d\/([\w-]+)/))) return `https://docs.google.com/presentation/d/${m[1]}/embed?start=false&loop=false`;
+  return null;
+}
+const ext = (a) => (String(a.fileName || a.mediaUrl || '').toLowerCase().split('?')[0].match(/\.([a-z0-9]{2,5})$/) || [])[1] || '';
+const isLocalHost = /^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname);
+
+function mediaHtml(a) {
+  const u = a.mediaUrl || '', e = ext(a);
+  if (a.kind === 'video') {
+    if (['mp4', 'webm', 'mov'].includes(e)) return `<div class="player"><video id="vid" src="${esc(u)}" controls playsinline preload="metadata" controlslist="nodownload"></video></div>`;
+    const em = embedUrl(u);
+    return em ? `<div class="player"><iframe src="${esc(em)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen title="${esc(a.title)}"></iframe></div>`
+      : `<div class="player"><div class="note">Este vídeo abre no site de origem.<a class="btn btn-white" href="${esc(u)}" target="_blank" rel="noopener">${I.ext} Abrir vídeo</a></div></div>`;
+  }
+  // apresentação
+  if (e === 'pdf') return `<div class="player doc"><iframe src="${esc(u)}#view=FitH" title="${esc(a.title)}"></iframe></div>`;
+  if (e === 'pptx' || e === 'ppt') {
+    if (isLocalHost) return `<div class="player doc"><div class="note"><b style="color:var(--navy)">A pré-visualização do PowerPoint aparece no site publicado.</b>No computador local, use o botão Baixar para abrir o arquivo.</div></div>`;
+    return `<div class="player doc"><iframe src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(u)}" allowfullscreen title="${esc(a.title)}"></iframe></div>`;
+  }
+  const em = embedUrl(u);
+  return `<div class="player doc"><iframe src="${esc(em || u)}" allowfullscreen title="${esc(a.title)}"></iframe></div>`;
+}
+
+/* ---------- Treinamento ---------- */
+function renderCourse(slug, aulaId) {
+  const t = S.trainings.find((x) => x.slug === slug);
+  if (!t) { $('#view').innerHTML = '<main style="margin-top:30px"><div class="empty"><b>Treinamento não encontrado</b><a href="#/">Voltar ao início</a></div></main>'; return; }
+  if (!t.aulas.length) { $('#view').innerHTML = `<div class="course"><div class="crumb"><a href="#/">Treinamentos</a> › ${esc(t.title)}</div><div class="empty"><b>Conteúdo em preparação</b>As aulas deste treinamento serão publicadas em breve.</div></div>`; return; }
+  const a = t.aulas.find((x) => x.id === aulaId) || t.aulas.find((x) => !S.done.has(x.id)) || t.aulas[0];
+  if (a.id !== aulaId) history.replaceState(null, '', `#/t/${t.slug}/${a.id}`);
+  const idx = t.aulas.indexOf(a), next = t.aulas[idx + 1];
+  const pr = progress(t);
+  const complete = pr.n && pr.d === pr.n;
+
+  const list = t.aulas.map((x, i) => {
+    const done = S.done.has(x.id), qz = S.quizzes.get(x.id);
+    const sub = [KIND[x.kind], x.durationMin && x.durationMin + ' min', x.kind === 'quiz' && `${x.quiz.questions.length} ${x.quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}`, qz && `melhor nota ${qz.best}%`].filter(Boolean).join(' · ');
+    return `<a class="lesson ${x.id === a.id ? 'on' : ''} ${done ? 'done' : ''}" href="#/t/${esc(t.slug)}/${x.id}">
+      <span class="ic">${done ? I.check : I[x.kind]}</span><span class="t">${esc(x.title)}<small>${esc(sub)}</small></span><span class="n">${i + 1}</span></a>`;
+  }).join('');
+
+  $('#view').innerHTML = `
+    <div class="course">
+      <div class="crumb"><a href="#/">Treinamentos</a> › <span>${esc(t.title)}</span></div>
+      <div class="layout">
+        <aside class="side-list">
+          <div class="head"><small>${esc([t.area, t.product].filter(Boolean).join(' · ') || 'Treinamento')}</small><h3>${esc(t.title)}</h3>
+            <div class="barrow"><div class="bar"><i style="width:${pr.pct}%"></i></div>${pr.d}/${pr.n}</div></div>
+          <nav class="lessons" aria-label="Aulas">${list}</nav>
+          ${complete ? `<div class="cert">${I.award} Treinamento concluído! <button class="btn btn-green btn-sm" id="certBtn">Emitir certificado</button></div>` : ''}
+        </aside>
+        <section class="stage" id="stage"></section>
+      </div>
+    </div>`;
+  if (complete) $('#certBtn').onclick = () => certificate(t);
+  renderLesson(t, a, next);
+}
+
+function lessonTop(a, i, t) {
+  return `<div class="top"><div class="txt"><span class="kicker">Aula ${i + 1} de ${t.aulas.length} · ${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</span><h2>${esc(a.title)}</h2></div></div>`;
+}
+
+function renderLesson(t, a, next) {
+  const st = $('#stage'), i = t.aulas.indexOf(a);
+  if (a.kind === 'quiz') return renderQuiz(t, a, next);
+  const done = S.done.has(a.id);
+  const own = /\/storage\/v1\/object\/public\//.test(a.mediaUrl || '');
+  const dl = own ? `${a.mediaUrl}?download=${encodeURIComponent(a.fileName || 'arquivo.' + ext(a))}` : null;
+  st.innerHTML = `${lessonTop(a, i, t)}${mediaHtml(a)}
+    ${a.description ? `<div class="desc" style="margin-top:16px">${esc(a.description)}</div>` : ''}
+    <div class="actions">
+      <span id="doneSlot">${done ? `<span class="done-pill">${I.check} Aula concluída</span>` : `<button class="btn btn-green" id="doneBtn">${I.check} Marcar como concluída</button>`}</span>
+      ${a.kind === 'apresentacao' && dl ? `<a class="btn btn-ghost" href="${esc(dl)}">${I.down} Baixar</a>` : ''}
+      ${a.kind === 'apresentacao' ? `<a class="btn btn-ghost" href="${esc(['pptx', 'ppt'].includes(ext(a)) && !isLocalHost ? 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(a.mediaUrl) : a.mediaUrl)}" target="_blank" rel="noopener">${I.ext} Tela cheia</a>` : ''}
+      <span class="spacer"></span>
+      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos treinamentos</a>`}
+    </div>`;
+  const mark = async () => {
+    if (S.done.has(a.id)) return;
+    S.done.add(a.id);
+    try { await api({ action: 'concluir', pid: S.p.id, aulaId: a.id }); renderCourse(t.slug, a.id); toast('Aula concluída'); }
+    catch (x) { S.done.delete(a.id); toast(x.message, true); }
+  };
+  $('#doneBtn')?.addEventListener('click', mark);
+  const v = $('#vid');
+  if (v && !done) v.addEventListener('timeupdate', () => { if (v.duration && v.currentTime / v.duration > 0.9) mark(); });
+}
+
+function renderQuiz(t, a, next, result, answers) {
+  const st = $('#stage'), i = t.aulas.indexOf(a), qs = a.quiz.questions, qz = S.quizzes.get(a.id);
+  answers = answers || new Array(qs.length).fill(null);
+  const review = result?.review;
+  const head = `${lessonTop(a, i, t)}${a.description ? `<div class="desc">${esc(a.description)}</div>` : ''}`;
+  const res = result ? `<div class="result ${result.passed ? 'ok' : 'no'}">
+      <div class="score">${result.score}%</div>
+      <div style="flex:1;min-width:220px"><h3>${result.passed ? 'Parabéns, você foi aprovado!' : 'Ainda não foi desta vez'}</h3>
+      <p>Você acertou ${result.correct} de ${result.total} perguntas. Nota mínima: ${result.passScore}%.${result.passed ? '' : ' Revise as respostas abaixo e tente novamente.'}</p></div>
+    </div>` : `<div class="qintro">
+      <div><b>${qs.length}</b>perguntas</div><div><b>${a.passScore}%</b>nota mínima</div>
+      ${qz ? `<div><b>${qz.best}%</b>sua melhor nota</div><div><b>${qz.tries}</b>${qz.tries > 1 ? 'tentativas' : 'tentativa'}</div>` : ''}
+    </div>`;
+  const qhtml = qs.map((q, qi) => `<fieldset class="question ${review ? 'review' : ''}" style="margin-inline:0">
+      <h4><span class="num">${qi + 1}</span><span>${esc(q.text)}</span></h4>
+      ${q.options.map((o, oi) => {
+        let cls = answers[qi] === oi ? 'sel' : '', mk = '';
+        if (review) {
+          cls = oi === review[qi].correct ? 'right' : answers[qi] === oi ? 'wrong' : '';
+          mk = oi === review[qi].correct ? (answers[qi] === oi ? 'Sua resposta · correta' : 'Correta') : answers[qi] === oi ? 'Sua resposta' : '';
+        }
+        return `<label class="opt ${cls}"><input type="radio" name="q${qi}" value="${oi}" ${answers[qi] === oi ? 'checked' : ''} ${review ? 'disabled' : ''}><span class="l">${LETTERS[oi]}</span><span>${esc(o)}</span>${mk ? `<span class="mk">${mk}</span>` : ''}</label>`;
+      }).join('')}
+      ${review && review[qi].explanation ? `<div class="explain">${esc(review[qi].explanation)}</div>` : ''}
+    </fieldset>`).join('');
+  const answered = answers.filter((x) => x !== null).length;
+  st.innerHTML = `${head}<div class="quiz">${res}<form id="quizForm">${qhtml}</form></div>
+    <div class="actions">
+      ${review ? `<button class="btn btn-ghost" id="retry">Refazer quiz</button>` : `<button class="btn btn-teal" id="send" ${answered < qs.length ? 'disabled style="cursor:not-allowed"' : ''}>Enviar respostas</button><span style="font-size:12.5px;color:var(--muted)" id="cnt">${answered} de ${qs.length} respondidas</span>`}
+      ${S.done.has(a.id) ? `<span class="done-pill">${I.check} Aprovado</span>` : ''}
+      <span class="spacer"></span>
+      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos treinamentos</a>`}
+    </div>`;
+  if (review) { $('#retry').onclick = () => { renderQuiz(t, a, next); st.scrollIntoView({ behavior: 'smooth' }); }; return; }
+  $('#quizForm').addEventListener('change', (e) => {
+    const m = e.target.name?.match(/^q(\d+)$/); if (!m) return;
+    answers[+m[1]] = +e.target.value;
+    e.target.closest('fieldset').querySelectorAll('.opt').forEach((o) => o.classList.toggle('sel', o.querySelector('input').checked));
+    const n = answers.filter((x) => x !== null).length;
+    $('#cnt').textContent = `${n} de ${qs.length} respondidas`;
+    const b = $('#send'); b.disabled = n < qs.length; b.style.cursor = n < qs.length ? 'not-allowed' : '';
+  });
+  $('#send').onclick = async () => {
+    const b = $('#send'); b.disabled = true; b.textContent = 'Corrigindo…';
+    try {
+      const r = await api({ action: 'quiz', pid: S.p.id, aulaId: a.id, answers });
+      const prev = S.quizzes.get(a.id);
+      S.quizzes.set(a.id, { aulaId: a.id, best: Math.max(prev?.best ?? 0, r.score), tries: (prev?.tries || 0) + 1, passed: prev?.passed || r.passed });
+      const wasDone = S.done.has(a.id);
+      if (r.passed) S.done.add(a.id);
+      if (r.passed && !wasDone) { renderCourse(t.slug, a.id); }
+      renderQuiz(t, a, next, r, answers);
+      $('#stage').scrollIntoView({ behavior: 'smooth' });
+    } catch (x) { toast(x.message, true); b.disabled = false; b.textContent = 'Enviar respostas'; }
+  };
+}
+
+/* ---------- Certificado ---------- */
+function certificate(t) {
+  const w = window.open('', '_blank');
+  if (!w) return toast('Permita pop-ups para emitir o certificado.', true);
+  const logo = new URL('assets/logo.svg', location.href).href;
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Certificado · ${esc(t.title)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;color:#1D2939;background:#fff}
+  .c{width:297mm;height:210mm;padding:18mm 22mm;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;border:0}
+  .c::before{content:"";position:absolute;inset:9mm;border:1.5px solid #D6E2EA;border-radius:6px}
+  .bar{position:absolute;left:0;right:0;top:0;height:7mm;background:linear-gradient(90deg,#0C2F79,#1EA4A8,#73CC6E)}
+  .bar.b{top:auto;bottom:0}
+  img{height:30mm;margin-top:6mm}
+  .k{font:700 12pt Montserrat;letter-spacing:4px;color:#1EA4A8;text-transform:uppercase;margin-top:8mm}
+  h1{font:800 34pt Montserrat;color:#0C2F79;margin:3mm 0 8mm}
+  p{font-size:13pt;color:#5B6772;margin:0;line-height:1.6}
+  .n{font:800 26pt Montserrat;color:#1D2939;margin:3mm 0 4mm;border-bottom:2px solid #73CC6E;padding:0 10mm 2mm}
+  .t{font:700 17pt Montserrat;color:#0C2F79;margin-top:2mm}
+  .f{margin-top:auto;display:flex;gap:30mm;font-size:10.5pt;color:#858683}
+  .f b{display:block;color:#1D2939;font:700 11pt Montserrat;margin-bottom:1mm}
+  @media screen{body{background:#EEF2F5}.c{margin:20px auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.12)}}</style></head>
+  <body><div class="c"><div class="bar"></div><img src="${logo}" alt="Sellmed Brasil">
+  <div class="k">Certificado de conclusão</div><h1>Treinamento de Produto</h1>
+  <p>Certificamos que</p><div class="n">${esc(S.p.name)}</div>
+  <p>concluiu com êxito o treinamento</p><div class="t">${esc(t.title)}</div>
+  <p style="margin-top:3mm">${t.aulas.length} ${t.aulas.length > 1 ? 'aulas' : 'aula'}${t.aulas.some((a) => a.kind === 'quiz') ? ', incluindo aprovação nos quizzes de avaliação' : ''}.</p>
+  <div class="f"><div><b>${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</b>Data de emissão</div><div><b>Sellmed Brasil</b>Produtos que salvam vidas</div></div>
+  <div class="bar b"></div></div><script>document.fonts.ready.then(()=>setTimeout(()=>print(),300))<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ---------- Rotas ---------- */
+function route() {
+  if (!S.p) return;
+  const m = location.hash.match(/^#\/t\/([^/]+)(?:\/([^/]+))?/);
+  if (m) renderCourse(decodeURIComponent(m[1]), m[2]);
+  else renderHome();
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-area]'); if (a) { FILTER.area = a.dataset.area; renderHome(); }
+});
+
+(async function init() {
+  fetch('/api/aluno').then((r) => r.json()).then((d) => { REQUIRES_CODE = !!d.requiresCode; $('#gCodeWrap').classList.toggle('hidden', !REQUIRES_CODE); }).catch(() => {});
+  const pid = store.get('trein.pid');
+  if (!pid) return showGate();
+  showShell();
+  $('#view').innerHTML = '<main style="margin-top:30px"><div class="cards"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></main>';
+  try { setData(await api({ action: 'conteudo', pid })); route(); }
+  catch (x) { if (S.p === null && !store.get('trein.pid')) return; $('#view').innerHTML = `<main style="margin-top:30px"><div class="empty"><b>Não foi possível carregar os treinamentos</b>${esc(x.message)}</div></main>`; }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "treinamentos-sellmed",
+  "private": true,
+  "type": "module",
+  "scripts": { "local": "node scripts/dev-local.mjs" },
+  "dependencies": { "pg": "^8.13.0" },
+  "devDependencies": { "@electric-sql/pglite": "^0.3.0", "@electric-sql/pglite-socket": "^0.0.20" }
+}
