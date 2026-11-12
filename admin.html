@@ -379,7 +379,7 @@ function mediaPickerHtml(kind) {
 }
 function mediaPicker(root, kind, init = {}, { onUploaded, saveBtn } = {}) {
   let media = { url: init.mediaUrl || '', fileName: init.fileName || '', size: init.size || 0 };
-  let mode = media.fileName ? 'file' : media.url ? 'link' : kind === 'video' ? 'link' : 'file';
+  let mode = media.fileName ? 'file' : media.url ? 'link' : 'file';
   $('.m-url', root).value = media.fileName ? '' : media.url;
   const showCur = () => {
     $('.m-cur', root).innerHTML = media.fileName && media.url ? `<div class="cur">📎 <a href="${esc(media.url)}" target="_blank" rel="noopener">${esc(media.fileName)}</a> <span class="hint">${fmtSize(media.size)}</span>
