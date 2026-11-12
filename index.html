@@ -235,9 +235,8 @@
       <h3>Acessar treinamentos</h3>
       <p>Informe seus dados. Use sempre o mesmo e-mail para manter seu progresso em qualquer dispositivo.</p>
       <div class="err hidden" id="gateErr"></div>
-      <label class="f">Nome completo<input id="gName" autocomplete="name" required></label>
-      <label class="f">E-mail<input id="gEmail" type="email" autocomplete="email" required></label>
-      <label class="f">Área / equipe <span style="text-transform:none;font-weight:500;letter-spacing:0">(opcional)</span><input id="gArea" placeholder="Ex.: Comercial SP, Distribuidor…"></label>
+      <label class="f">Nome e sobrenome<input id="gName" autocomplete="name" placeholder="Ex.: Maria Silva" required></label>
+      <label class="f">E-mail Sellmed<input id="gEmail" type="email" autocomplete="email" placeholder="nome@sellmedbrasil.com" required></label>
       <label class="f hidden" id="gCodeWrap">Código de acesso<input id="gCode" autocomplete="off" style="text-transform:uppercase"></label>
       <button class="btn btn-primary" id="gateBtn" style="width:100%;padding:12px;margin-top:4px">Entrar</button>
     </form>
@@ -326,7 +325,7 @@ $('#gateForm').addEventListener('submit', async (e) => {
   const btn = $('#gateBtn'), err = $('#gateErr');
   err.classList.add('hidden'); btn.disabled = true; btn.textContent = 'Entrando…';
   try {
-    setData(await api({ action: 'entrar', name: $('#gName').value, email: $('#gEmail').value, area: $('#gArea').value, code: $('#gCode').value }));
+    setData(await api({ action: 'entrar', name: $('#gName').value, email: $('#gEmail').value, code: $('#gCode').value }));
     showShell(); route();
   } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
   finally { btn.disabled = false; btn.textContent = 'Entrar'; }
