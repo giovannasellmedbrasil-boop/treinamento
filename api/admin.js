@@ -1,5 +1,5 @@
 import { DOMAIN, allowedEmail, normEmail, sendLinkEmail, smtpDiagnose } from './_auth.js';
-import { clean, freeSlug, pool, getLesson, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
+import { clean, freeSlug, pool, getLesson, getModule, getTraining, intOrNull, isAdmin, isOwnFile, isUuid, listTrainings, q, readJson, removeFiles, slugify, storagePath } from './_lib.js';
 
 const isHttp = (u) => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u) && u.length <= 1000;
 
@@ -93,6 +93,31 @@ async function results() {
   return { progresso, tentativas, participantes };
 }
 
+// Módulo onde a aula vai entrar: o informado (se for do mesmo treinamento) ou o primeiro; cria "Módulo 1" se não houver nenhum
+async function resolveModule(treinamentoId, moduloId) {
+  if (isUuid(moduloId)) {
+    const m = await getModule(moduloId);
+    if (m && m.treinamentoId === treinamentoId) return m;
+    throw Object.assign(new Error('Módulo inválido.'), { status: 400 });
+  }
+  const [first] = await q(`select id from public.modulos where treinamento_id = $1 order by sort_order, created_at limit 1`, [treinamentoId]);
+  if (first) return first;
+  return (await q(`insert into public.modulos (treinamento_id, title, sort_order) values ($1, 'Módulo 1', 10) returning id`, [treinamentoId]))[0];
+}
+const moduleFields = (it) => ({ title: clean(it.title, 140), description: clean(it.description, 1200) });
+
+async function insertLesson(db, treinamentoId, moduloId, l, order) {
+  await db.query(`insert into public.aulas (treinamento_id, modulo_id, kind, title, description, media_url, file_name, size, duration_min, quiz, pass_score, sort_order)
+                  values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+    [treinamentoId, moduloId, l.kind, l.title, l.description, l.mediaUrl, l.fileName, l.size, l.durationMin, l.quiz && JSON.stringify(l.quiz), l.passScore, order]);
+}
+async function inTransaction(fn) {
+  const c = await pool.connect();
+  try { await c.query('begin'); const r = await fn(c); await c.query('commit'); return r; }
+  catch (e) { await c.query('rollback').catch(() => {}); throw e; }
+  finally { c.release(); }
+}
+
 const nextOrder = (table, where = '', params = []) =>
   q(`select coalesce(max(sort_order), 0) + 10 as n from public.${table} ${where}`, params).then((r) => r[0].n);
 
@@ -122,30 +147,59 @@ export default async function handler(req, res) {
             f.sortOrder ?? await nextOrder('treinamentos')]);
       }
     } else if (action === 'createFull') {
-      // treinamento novo já com vídeo, apresentação e quiz, tudo ou nada
+      // treinamento novo com módulos e aulas, tudo ou nada. item.modulos = [{ title, lessons: [...] }]
       const f = trainingFields(item);
       if (!f.title) return res.status(400).json({ error: 'Informe o título do treinamento.' });
-      let lessons;
-      try { lessons = (Array.isArray(item.lessons) ? item.lessons : []).slice(0, 20).map(lessonFields); }
-      catch (e) { return res.status(400).json({ error: e.message }); }
-      const slug = await freeSlug(slugify(f.title)), order = f.sortOrder ?? await nextOrder('treinamentos');
-      const c = await pool.connect();
-      let createdId;
+      const rawMods = Array.isArray(item.modulos) ? item.modulos : [{ title: 'Módulo 1', lessons: item.lessons }];
+      let mods;
       try {
-        await c.query('begin');
-        createdId = (await c.query(`insert into public.treinamentos (slug, title, description, product, area, manufacturer, cover_url, published, sort_order)
+        mods = rawMods.slice(0, 30).map((m, i) => ({ ...moduleFields(m), title: clean(m.title, 140) || `Módulo ${i + 1}`,
+          lessons: (Array.isArray(m.lessons) ? m.lessons : []).slice(0, 100).map(lessonFields) }));
+      } catch (e) { return res.status(400).json({ error: e.message }); }
+      if (!mods.length) mods = [{ title: 'Módulo 1', description: '', lessons: [] }];
+      const slug = await freeSlug(slugify(f.title)), order = f.sortOrder ?? await nextOrder('treinamentos');
+      const createdId = await inTransaction(async (c) => {
+        const id = (await c.query(`insert into public.treinamentos (slug, title, description, product, area, manufacturer, cover_url, published, sort_order)
                  values ($1,$2,$3,$4,$5,$6,null,$7,$8) returning id`,
           [slug, f.title, f.description, f.product, f.area, f.manufacturer, f.published, order])).rows[0].id;
-        for (let i = 0; i < lessons.length; i++) {
-          const l = lessons[i];
-          await c.query(`insert into public.aulas (treinamento_id, kind, title, description, media_url, file_name, size, duration_min, quiz, pass_score, sort_order)
-                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-            [createdId, l.kind, l.title, l.description, l.mediaUrl, l.fileName, l.size, l.durationMin, l.quiz && JSON.stringify(l.quiz), l.passScore, (i + 1) * 10]);
+        for (let i = 0; i < mods.length; i++) {
+          const mid = (await c.query(`insert into public.modulos (treinamento_id, title, description, sort_order) values ($1,$2,$3,$4) returning id`,
+            [id, mods[i].title, mods[i].description, (i + 1) * 10])).rows[0].id;
+          for (let j = 0; j < mods[i].lessons.length; j++) await insertLesson(c, id, mid, mods[i].lessons[j], (j + 1) * 10);
         }
-        await c.query('commit');
-      } catch (e) { await c.query('rollback').catch(() => {}); throw e; }
-      finally { c.release(); }
+        return id;
+      });
       return res.status(200).json({ treinamentos: await listTrainings(), createdId });
+    } else if (action === 'saveModule') {
+      const f = moduleFields(item);
+      if (!f.title) return res.status(400).json({ error: 'Informe o nome do módulo.' });
+      if (item.id) {
+        const old = isUuid(item.id) && await getModule(item.id);
+        if (!old) return res.status(404).json({ error: 'Módulo não encontrado.' });
+        await q(`update public.modulos set title = $2, description = $3 where id = $1`, [old.id, f.title, f.description]);
+      } else {
+        const t = isUuid(item.treinamentoId) && await getTraining(item.treinamentoId);
+        if (!t) return res.status(404).json({ error: 'Treinamento não encontrado.' });
+        await q(`insert into public.modulos (treinamento_id, title, description, sort_order) values ($1,$2,$3,$4)`,
+          [t.id, f.title, f.description, await nextOrder('modulos', 'where treinamento_id = $1', [t.id])]);
+      }
+    } else if (action === 'deleteModule') {
+      const old = isUuid(item.id) && await getModule(item.id);
+      if (!old) return res.status(404).json({ error: 'Módulo não encontrado.' });
+      const files = (await q(`select media_url from public.aulas where modulo_id = $1`, [old.id])).map((r) => r.media_url);
+      await q(`delete from public.modulos where id = $1`, [old.id]); // as aulas do módulo saem junto (cascade)
+      await removeFiles(files);
+    } else if (action === 'addLessons') {
+      // várias aulas de uma vez no mesmo módulo (envio de vários arquivos)
+      const t = isUuid(item.treinamentoId) && await getTraining(item.treinamentoId);
+      if (!t) return res.status(404).json({ error: 'Treinamento não encontrado.' });
+      let lessons;
+      try { lessons = (Array.isArray(item.lessons) ? item.lessons : []).slice(0, 100).map(lessonFields); }
+      catch (e) { return res.status(400).json({ error: e.message }); }
+      if (!lessons.length) return res.status(400).json({ error: 'Nenhuma aula para adicionar.' });
+      const m = await resolveModule(t.id, item.moduloId);
+      const start = await nextOrder('aulas', 'where modulo_id = $1', [m.id]);
+      await inTransaction(async (c) => { for (let i = 0; i < lessons.length; i++) await insertLesson(c, t.id, m.id, lessons[i], start + i * 10); });
     } else if (action === 'deleteTraining') {
       const old = isUuid(item.id) && (await listTrainings()).find((t) => t.id === item.id);
       if (!old) return res.status(404).json({ error: 'Treinamento não encontrado.' });
@@ -157,17 +211,18 @@ export default async function handler(req, res) {
       if (item.id) {
         const old = isUuid(item.id) && await getLesson(item.id);
         if (!old) return res.status(404).json({ error: 'Aula não encontrada.' });
+        // trocar de módulo: vai para o fim do módulo novo
+        const m = item.moduloId && item.moduloId !== old.moduloId ? await resolveModule(old.treinamentoId, item.moduloId) : null;
         await q(`update public.aulas set kind=$2, title=$3, description=$4, media_url=$5, file_name=$6, size=$7, duration_min=$8, quiz=$9,
                    pass_score=$10, updated_at=now() where id=$1`,
           [old.id, f.kind, f.title, f.description, f.mediaUrl, f.fileName, f.size, f.durationMin, f.quiz && JSON.stringify(f.quiz), f.passScore]);
+        if (m) await q(`update public.aulas set modulo_id = $2, sort_order = $3 where id = $1`, [old.id, m.id, await nextOrder('aulas', 'where modulo_id = $1', [m.id])]);
         if (old.mediaUrl && old.mediaUrl !== f.mediaUrl) await removeFiles([old.mediaUrl]);
       } else {
         const t = isUuid(item.treinamentoId) && await getTraining(item.treinamentoId);
         if (!t) return res.status(404).json({ error: 'Treinamento não encontrado.' });
-        await q(`insert into public.aulas (treinamento_id, kind, title, description, media_url, file_name, size, duration_min, quiz, pass_score, sort_order)
-                 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-          [t.id, f.kind, f.title, f.description, f.mediaUrl, f.fileName, f.size, f.durationMin, f.quiz && JSON.stringify(f.quiz), f.passScore,
-            await nextOrder('aulas', 'where treinamento_id = $1', [t.id])]);
+        const m = await resolveModule(t.id, item.moduloId);
+        await insertLesson(pool, t.id, m.id, f, await nextOrder('aulas', 'where modulo_id = $1', [m.id]));
       }
     } else if (action === 'deleteLesson') {
       const old = isUuid(item.id) && await getLesson(item.id);
@@ -175,8 +230,8 @@ export default async function handler(req, res) {
       await q(`delete from public.aulas where id = $1`, [old.id]);
       await removeFiles([old.mediaUrl]);
     } else if (action === 'reorder') {
-      // item.ids = ids das aulas (ou dos treinamentos, com item.table = 'treinamentos') na nova ordem
-      const table = item.table === 'treinamentos' ? 'treinamentos' : 'aulas';
+      // item.ids = ids na nova ordem; item.table = 'aulas' (padrão), 'modulos' ou 'treinamentos'
+      const table = ['treinamentos', 'modulos'].includes(item.table) ? item.table : 'aulas';
       const ids = (Array.isArray(item.ids) ? item.ids : []).filter(isUuid);
       for (let i = 0; i < ids.length; i++) await q(`update public.${table} set sort_order = $2 where id = $1`, [ids[i], (i + 1) * 10]);
     } else if (action === 'convidar' || action === 'reenviar') {

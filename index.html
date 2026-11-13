@@ -145,6 +145,12 @@
   .side-list .head small{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--teal);}
   .side-list .head h3{margin:4px 0 12px;font-size:16.5px;color:var(--navy);line-height:1.3;}
   .lessons{max-height:calc(100vh - 290px);overflow:auto;padding:6px;}
+  .mod-h{display:flex;align-items:baseline;gap:8px;padding:12px 11px 6px;margin-top:4px;border-top:1px solid var(--border);}
+  .mod-h:first-child{border-top:none;margin-top:0;padding-top:6px;}
+  .mod-h span{flex:none;font:700 10px 'Montserrat',sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#fff;background:var(--navy);border-radius:5px;padding:3px 7px;}
+  .mod-h.ok span{background:var(--green-dk);}
+  .mod-h b{flex:1;min-width:0;font:700 13px 'Montserrat',sans-serif;color:var(--navy);}
+  .mod-h small{font-size:11.5px;font-weight:700;color:var(--muted);}
   .lesson{display:flex;gap:11px;align-items:flex-start;padding:10px 11px;border-radius:10px;text-decoration:none;color:var(--ink);cursor:pointer;}
   .lesson:hover{background:var(--hover);}
   .lesson.on{background:var(--teal-soft);}
@@ -331,6 +337,7 @@ const I = {
   down: SVG('<path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/>'),
   ext: SVG('<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>'),
   next: SVG('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  layers: SVG('<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>'),
   award: SVG('<circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>'),
 };
 const KIND = { video: 'Vídeo', apresentacao: 'Apresentação', quiz: 'Quiz' };
@@ -492,7 +499,7 @@ function renderHome() {
         <div class="tagrow">${t.area ? `<span class="tag">${esc(t.area)}</span>` : ''}${t.manufacturer ? `<span class="tag t">${esc(t.manufacturer)}</span>` : ''}</div>
         <h4>${esc(t.title)}</h4>
         ${t.description ? `<p>${esc(t.description)}</p>` : ''}
-        <div class="kinds">${['video', 'apresentacao', 'quiz'].filter(k).map((x) => `<span>${I[x]} ${k(x)} ${x === 'video' ? (k(x) > 1 ? 'vídeos' : 'vídeo') : x === 'quiz' ? (k(x) > 1 ? 'quizzes' : 'quiz') : (k(x) > 1 ? 'apresentações' : 'apresentação')}</span>`).join('')}</div>
+        <div class="kinds">${(t.modulos || []).length > 1 ? `<span>${I.layers} ${t.modulos.length} módulos</span>` : ''}${['video', 'apresentacao', 'quiz'].filter(k).map((x) => `<span>${I[x]} ${k(x)} ${x === 'video' ? (k(x) > 1 ? 'vídeos' : 'vídeo') : x === 'quiz' ? (k(x) > 1 ? 'quizzes' : 'quiz') : (k(x) > 1 ? 'apresentações' : 'apresentação')}</span>`).join('')}</div>
         <div class="foot">
           <div class="barrow"><div class="bar"><i style="width:${pr.pct}%"></i></div>${pr.pct}%</div>
           <div class="cta"><span class="btn ${pr.n && pr.d === pr.n ? 'btn-ghost' : 'btn-primary'}">${label}</span></div>
@@ -571,10 +578,21 @@ function renderCourse(slug, aulaId) {
   const pr = progress(t);
   const complete = pr.n && pr.d === pr.n;
 
+  // lista agrupada por módulo (as aulas já vêm na ordem dos módulos)
+  const modIdx = new Map((t.modulos || []).map((m, i) => [m.id, i]));
+  const showMods = (t.modulos || []).length > 1 || (t.modulos || []).some((m) => !/^m[oó]dulo\s*1$/i.test(m.title.trim()));
+  let lastMod;
   const list = t.aulas.map((x, i) => {
+    let head = '';
+    if (showMods && x.moduloId !== lastMod) {
+      lastMod = x.moduloId;
+      const m = t.modulos[modIdx.get(x.moduloId)];
+      const ls = t.aulas.filter((y) => y.moduloId === x.moduloId), dn = ls.filter((y) => S.done.has(y.id)).length;
+      if (m) head = `<div class="mod-h ${dn === ls.length ? 'ok' : ''}"><span>Módulo ${modIdx.get(x.moduloId) + 1}</span><b>${esc(m.title)}</b><small>${dn}/${ls.length}</small></div>`;
+    }
     const done = S.done.has(x.id), qz = S.quizzes.get(x.id);
     const sub = [KIND[x.kind], x.durationMin && x.durationMin + ' min', x.kind === 'quiz' && `${x.quiz.questions.length} ${x.quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}`, qz && `melhor nota ${qz.best}%`].filter(Boolean).join(' · ');
-    return `<a class="lesson ${x.id === a.id ? 'on' : ''} ${done ? 'done' : ''}" href="#/t/${esc(t.slug)}/${x.id}">
+    return head + `<a class="lesson ${x.id === a.id ? 'on' : ''} ${done ? 'done' : ''}" href="#/t/${esc(t.slug)}/${x.id}">
       <span class="ic">${done ? I.check : I[x.kind]}</span><span class="t">${esc(x.title)}<small>${esc(sub)}</small></span><span class="n">${i + 1}</span></a>`;
   }).join('');
 
@@ -596,7 +614,9 @@ function renderCourse(slug, aulaId) {
 }
 
 function lessonTop(a, i, t) {
-  return `<div class="top"><div class="txt"><span class="kicker">Aula ${i + 1} de ${t.aulas.length} · ${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</span><h2>${esc(a.title)}</h2></div></div>`;
+  const mi = (t.modulos || []).findIndex((m) => m.id === a.moduloId), m = t.modulos?.[mi];
+  const modTxt = m && t.modulos.length > 1 ? `Módulo ${mi + 1}: ${esc(m.title)} · ` : '';
+  return `<div class="top"><div class="txt"><span class="kicker">${modTxt}Aula ${i + 1} de ${t.aulas.length} · ${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</span><h2>${esc(a.title)}</h2></div></div>`;
 }
 
 function renderLesson(t, a, next) {

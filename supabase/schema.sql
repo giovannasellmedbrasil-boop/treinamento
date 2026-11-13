@@ -115,3 +115,26 @@ create index if not exists sessoes_participante on public.sessoes (participante_
 alter table public.auth_tokens enable row level security;
 alter table public.sessoes     enable row level security;
 revoke all on public.auth_tokens, public.sessoes from anon, authenticated;
+
+-- ---------- Módulos (13/11/2026) ----------
+-- Cada treinamento é dividido em módulos; cada módulo tem várias aulas (vídeos, apresentações, quizzes).
+create table if not exists public.modulos (
+  id             uuid primary key default gen_random_uuid(),
+  treinamento_id uuid not null references public.treinamentos(id) on delete cascade,
+  title          text not null check (char_length(title) between 1 and 140),
+  description    text not null default '' check (char_length(description) <= 1200),
+  sort_order     int not null default 0,
+  created_at     timestamptz not null default now()
+);
+create index if not exists modulos_treinamento on public.modulos (treinamento_id, sort_order);
+alter table public.aulas add column if not exists modulo_id uuid references public.modulos(id) on delete cascade;
+create index if not exists aulas_modulo on public.aulas (modulo_id, sort_order);
+alter table public.modulos enable row level security;
+revoke all on public.modulos from anon, authenticated;
+
+-- Aulas criadas antes dos módulos vão para um "Módulo 1" do próprio treinamento
+insert into public.modulos (treinamento_id, title, sort_order)
+select distinct a.treinamento_id, 'Módulo 1', 10 from public.aulas a
+ where a.modulo_id is null and not exists (select 1 from public.modulos m where m.treinamento_id = a.treinamento_id);
+update public.aulas a set modulo_id = (select m.id from public.modulos m where m.treinamento_id = a.treinamento_id order by m.sort_order limit 1)
+ where a.modulo_id is null;

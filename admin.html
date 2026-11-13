@@ -136,6 +136,23 @@
   .modal{display:flex;flex-direction:column;max-height:calc(100vh - 60px);}
   .modal .body{min-height:0;overflow:auto;flex:1;}
   .modal header,.modal .mtabs,.modal footer{flex:none;}
+  .module{padding:16px 20px;}
+  .mod-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .mod-head h3{margin:0;font-size:16px;color:var(--navy);}
+  .mod-head .right{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+  .mod-n{font:700 11px 'Montserrat',sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#fff;background:var(--navy);border-radius:6px;padding:4px 9px;}
+  .mod-desc{margin:-2px 0 10px;font-size:13px;}
+  .mod-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);}
+  .fl-items{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+  .fl-row{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface);}
+  .fl-row.erro{border-color:#EBB4AF;background:var(--red-bg);}
+  .fl-row.ok:not(:has(.fl-url)){border-color:#BFE6BC;}
+  .fl-main{flex:1;min-width:0;}
+  .fl-main .fl-title{padding:6px 9px;font-size:13.5px;font-weight:600;}
+  .fl-meta{font-size:12px;color:var(--muted);margin-top:5px;word-break:break-all;}
+  .fl-row.ok .fl-meta b{color:var(--green-dk);} .fl-row.erro .fl-meta b{color:var(--red);}
+  .fl-linkrow{display:flex;gap:8px;margin-top:6px;} .fl-linkrow select{width:auto;padding:6px 8px;font-size:13px;} .fl-linkrow input{padding:6px 9px;font-size:13px;}
+  .fl-row .prog{margin-top:6px;}
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:9px;font-size:13.5px;font-weight:500;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.2);}
   #toast.err{background:var(--red);}
   @media (max-width:760px){ header.topbar,main{padding-left:16px;padding-right:16px;} .form-grid{grid-template-columns:1fr;} .kpis{grid-template-columns:1fr 1fr;} }
@@ -187,6 +204,7 @@ const I = {
   video: SVG('<polygon points="7 4 20 12 7 20 7 4"/>'),
   apresentacao: SVG('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
   quiz: SVG('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/>'),
+  upload: SVG('<path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M5 20h14"/>'),
   up: SVG('<path d="M12 19V5M6 11l6-6 6 6"/>', 14), down: SVG('<path d="M12 5v14M6 13l6 6 6-6"/>', 14),
 };
 const KIND = { video: 'Vídeo', apresentacao: 'Apresentação', quiz: 'Quiz' };
@@ -232,19 +250,23 @@ $$('.tab').forEach((t) => t.onclick = () => {
 
 /* ---------- Modal ---------- */
 function openModal(html, wide) { const m = $('#modal'); m.className = 'modal' + (wide ? ' wide' : ''); m.innerHTML = html; $('#ov').classList.add('open'); $$('[data-close]', m).forEach((b) => b.onclick = closeModal); }
-function closeModal() { if (UPLOADING) return toast('Aguarde o envio terminar.', true); $('#ov').classList.remove('open'); }
+function closeModal() { if (UPLOADING > 0) return toast('Aguarde o envio terminar.', true); $('#ov').classList.remove('open'); }
 $('#ov').addEventListener('mousedown', (e) => { if (e.target.id === 'ov') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#ov').classList.contains('open')) closeModal(); });
 
 /* ---------- Upload ---------- */
-let UPLOADING = false;
+let UPLOADING = 0; // quantos envios estão em andamento
 const MIME = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', pdf: 'application/pdf', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ppt: 'application/vnd.ms-powerpoint', jpg: 'image/jpeg' };
+const VIDEO_EXT = ['mp4', 'webm', 'mov'], APRES_EXT = ['pptx', 'ppt', 'pdf'];
+const extOf = (name) => String(name || '').toLowerCase().split('.').pop();
+const kindOf = (name) => VIDEO_EXT.includes(extOf(name)) ? 'video' : APRES_EXT.includes(extOf(name)) ? 'apresentacao' : null;
+const titleFromFile = (name) => name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 async function upload(file, type, name, bar) {
-  const ext = (name || file.name).toLowerCase().split('.').pop();
+  const ext = extOf(name || file.name);
   const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PW, name: name || file.name, size: file.size, type }) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error || 'Falha ao preparar o envio.');
-  UPLOADING = true;
+  UPLOADING++;
   try {
     await new Promise((ok, fail) => {
       const x = new XMLHttpRequest();
@@ -255,38 +277,42 @@ async function upload(file, type, name, bar) {
       x.onerror = () => fail(new Error('Falha de conexão durante o envio.'));
       x.send(file);
     });
-  } finally { UPLOADING = false; }
+  } finally { UPLOADING--; }
   return d.url;
 }
 
-function dropzone(el, onFile) {
+// Área de soltar arquivos; com multiple = true entrega todos os arquivos escolhidos
+function dropzone(el, onFile, multiple = false) {
   const inp = $('input', el);
-  inp.onchange = () => inp.files[0] && onFile(inp.files[0]);
+  if (multiple) inp.multiple = true;
+  const take = (files) => { const list = [...files]; if (!list.length) return; multiple ? onFile(list) : onFile(list[0]); };
+  inp.onchange = () => { take(inp.files); inp.value = ''; };
   el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
   el.addEventListener('dragleave', () => el.classList.remove('over'));
-  el.addEventListener('drop', (e) => { e.preventDefault(); el.classList.remove('over'); e.dataTransfer.files[0] && onFile(e.dataTransfer.files[0]); });
+  el.addEventListener('drop', (e) => { e.preventDefault(); el.classList.remove('over'); take(e.dataTransfer.files); });
 }
 
 /* ---------- Treinamentos ---------- */
+const lessonsOf = (t, m) => t.aulas.filter((a) => a.moduloId === m.id);
 function renderTrein() {
   if (OPEN && TR.find((t) => t.id === OPEN)) return renderDetail();
   OPEN = null;
   $('#tabTrein').innerHTML = `<section class="panel">
     <h2>Treinamentos <span class="right"><button class="btn btn-primary" id="newT">+ Novo treinamento</button></span></h2>
     ${!TR.length ? '<div class="empty">Nenhum treinamento ainda. Clique em <b>Novo treinamento</b> para começar.</div>' : `<div class="tbl-wrap"><table class="t">
-      <thead><tr><th></th><th>Treinamento</th><th>Área</th><th>Aulas</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Treinamento</th><th>Área</th><th>Conteúdo</th><th>Status</th><th></th></tr></thead>
       <tbody>${TR.map((t, i) => {
         const k = (x) => t.aulas.filter((a) => a.kind === x).length;
+        const nm = t.modulos.length;
         return `<tr>
-          <td style="width:84px">${t.coverUrl ? `<img class="thumb" src="${esc(t.coverUrl)}" alt="">` : '<span class="thumb"></span>'}</td>
           <td><a href="#" data-open="${t.id}" style="color:var(--navy);font-weight:700;text-decoration:none">${esc(t.title)}</a><div class="small">${esc([t.product, t.manufacturer].filter(Boolean).join(' · '))}</div></td>
           <td>${esc(t.area)}</td>
-          <td class="small" style="white-space:nowrap">${k('video')} vídeo(s) · ${k('apresentacao')} apres. · ${k('quiz')} quiz</td>
+          <td class="small" style="white-space:nowrap">${nm} ${nm === 1 ? 'módulo' : 'módulos'} · ${k('video')} vídeo(s) · ${k('apresentacao')} apres. · ${k('quiz')} quiz</td>
           <td>${t.published ? '<span class="tag ok">Publicado</span>' : '<span class="tag off">Rascunho</span>'}</td>
           <td class="acts">
             <button class="btn btn-ghost btn-sm btn-ic" data-moveT="${i}" data-dir="-1" title="Subir" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
             <button class="btn btn-ghost btn-sm btn-ic" data-moveT="${i}" data-dir="1" title="Descer" ${i === TR.length - 1 ? 'disabled' : ''}>${I.down}</button>
-            <button class="btn btn-teal btn-sm" data-open="${t.id}">Aulas</button>
+            <button class="btn btn-teal btn-sm" data-open="${t.id}">Módulos e aulas</button>
             <button class="btn btn-ghost btn-sm" data-editT="${t.id}">Editar</button>
           </td></tr>`;
       }).join('')}</tbody></table></div>`}
@@ -294,62 +320,122 @@ function renderTrein() {
   $('#newT').onclick = () => trainingModal();
 }
 
+function lessonRow(a, i, n, mid) {
+  return `<tr>
+    <td class="small" style="width:30px">${i + 1}</td>
+    <td style="width:44px"><span class="ic ${a.kind}">${I[a.kind]}</span></td>
+    <td><b style="color:var(--navy)">${esc(a.title)}</b><div class="small">${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</div></td>
+    <td class="small">${a.kind === 'quiz' ? `${a.quiz.questions.length} pergunta(s) · mínimo ${a.passScore}%` : a.fileName ? `${esc(a.fileName)} · ${fmtSize(a.size)}` : `<a href="${esc(a.mediaUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">${esc(a.mediaUrl.replace(/^https?:\/\//, '').slice(0, 48))}…</a>`}</td>
+    <td class="acts">
+      <button class="btn btn-ghost btn-sm btn-ic" data-moveL="${i}" data-mod="${mid}" data-dir="-1" title="Subir" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
+      <button class="btn btn-ghost btn-sm btn-ic" data-moveL="${i}" data-mod="${mid}" data-dir="1" title="Descer" ${i === n - 1 ? 'disabled' : ''}>${I.down}</button>
+      <button class="btn btn-ghost btn-sm" data-editL="${a.id}">Editar</button>
+      <button class="btn btn-danger btn-sm" data-delL="${a.id}">Excluir</button>
+    </td></tr>`;
+}
+
 function renderDetail() {
   const t = TR.find((x) => x.id === OPEN);
+  const mods = t.modulos;
+  const orphans = t.aulas.filter((a) => !mods.some((m) => m.id === a.moduloId));
+  const modHtml = (m, mi) => {
+    const ls = lessonsOf(t, m);
+    return `<section class="panel module">
+      <div class="mod-head">
+        <span class="mod-n">Módulo ${mi + 1}</span>
+        <h3>${esc(m.title)}</h3>
+        <span class="small">${ls.length} ${ls.length === 1 ? 'aula' : 'aulas'}</span>
+        <span class="right">
+          <button class="btn btn-ghost btn-sm btn-ic" data-moveM="${mi}" data-dir="-1" title="Subir módulo" ${mi === 0 ? 'disabled' : ''}>${I.up}</button>
+          <button class="btn btn-ghost btn-sm btn-ic" data-moveM="${mi}" data-dir="1" title="Descer módulo" ${mi === mods.length - 1 ? 'disabled' : ''}>${I.down}</button>
+          <button class="btn btn-ghost btn-sm" data-editM="${m.id}">Renomear</button>
+          <button class="btn btn-danger btn-sm" data-delM="${m.id}">Excluir</button>
+        </span>
+      </div>
+      ${m.description ? `<p class="mod-desc">${esc(m.description)}</p>` : ''}
+      ${!ls.length ? '<div class="empty" style="padding:18px">Módulo vazio. Envie arquivos ou adicione aulas abaixo.</div>'
+        : `<div class="tbl-wrap"><table class="t"><tbody>${ls.map((a, i) => lessonRow(a, i, ls.length, m.id)).join('')}</tbody></table></div>`}
+      <div class="mod-add">
+        <button class="btn btn-teal" data-bulk="${m.id}">${I.upload} Enviar arquivos</button>
+        <button class="btn btn-ghost" data-newL="video" data-mod="${m.id}">${I.video} Vídeo</button>
+        <button class="btn btn-ghost" data-newL="apresentacao" data-mod="${m.id}">${I.apresentacao} Apresentação</button>
+        <button class="btn btn-ghost" data-newL="quiz" data-mod="${m.id}">${I.quiz} Quiz</button>
+      </div>
+    </section>`;
+  };
   $('#tabTrein').innerHTML = `<button class="back" id="back">← Todos os treinamentos</button>
     <section class="panel">
       <div class="detail-head">
-        ${t.coverUrl ? `<img src="${esc(t.coverUrl)}" alt="">` : '<span class="ph"></span>'}
         <div class="txt"><h3>${esc(t.title)}</h3><p>${esc([t.area, t.product, t.manufacturer].filter(Boolean).join(' · '))}</p>
-          <p>${t.published ? '<span class="tag ok">Publicado</span>' : '<span class="tag off">Rascunho — não aparece para os participantes</span>'}</p></div>
+          <p>${t.published ? '<span class="tag ok">Publicado</span>' : '<span class="tag off">Rascunho — não aparece para os participantes</span>'}
+          <span class="small" style="margin-left:8px">${mods.length} ${mods.length === 1 ? 'módulo' : 'módulos'} · ${t.aulas.length} ${t.aulas.length === 1 ? 'aula' : 'aulas'}</span></p></div>
         <button class="btn btn-ghost" data-editT="${t.id}">Editar dados</button>
+        <button class="btn btn-primary" data-newM="1">+ Novo módulo</button>
       </div>
-      <h2>Aulas <span class="right">
-        <button class="btn btn-ghost" data-newL="video">${I.video} Vídeo</button>
-        <button class="btn btn-ghost" data-newL="apresentacao">${I.apresentacao} Apresentação</button>
-        <button class="btn btn-ghost" data-newL="quiz">${I.quiz} Quiz</button></span></h2>
-      ${!t.aulas.length ? '<div class="empty">Nenhuma aula ainda. Adicione vídeos, apresentações e quizzes na ordem em que devem ser feitos.</div>' : `<div class="tbl-wrap"><table class="t">
-        <thead><tr><th>#</th><th></th><th>Aula</th><th>Conteúdo</th><th></th></tr></thead>
-        <tbody>${t.aulas.map((a, i) => `<tr>
-          <td class="small" style="width:30px">${i + 1}</td>
-          <td style="width:44px"><span class="ic ${a.kind}">${I[a.kind]}</span></td>
-          <td><b style="color:var(--navy)">${esc(a.title)}</b><div class="small">${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</div></td>
-          <td class="small">${a.kind === 'quiz' ? `${a.quiz.questions.length} pergunta(s) · mínimo ${a.passScore}%` : a.fileName ? `${esc(a.fileName)} · ${fmtSize(a.size)}` : `<a href="${esc(a.mediaUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">${esc(a.mediaUrl.replace(/^https?:\/\//, '').slice(0, 48))}…</a>`}</td>
-          <td class="acts">
-            <button class="btn btn-ghost btn-sm btn-ic" data-moveL="${i}" data-dir="-1" title="Subir" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
-            <button class="btn btn-ghost btn-sm btn-ic" data-moveL="${i}" data-dir="1" title="Descer" ${i === t.aulas.length - 1 ? 'disabled' : ''}>${I.down}</button>
-            <button class="btn btn-ghost btn-sm" data-editL="${a.id}">Editar</button>
-            <button class="btn btn-danger btn-sm" data-delL="${a.id}">Excluir</button>
-          </td></tr>`).join('')}</tbody></table></div>`}
+      <p class="hint" style="margin:0">Os participantes seguem os módulos na ordem abaixo. Em cada módulo, use <b>Enviar arquivos</b> para subir vários vídeos e apresentações de uma vez.</p>
     </section>
-    <div style="display:flex;justify-content:flex-end"><button class="btn btn-danger" id="delT">Excluir treinamento</button></div>`;
+    ${orphans.length ? `<section class="panel module"><div class="mod-head"><h3>Aulas sem módulo</h3></div><div class="tbl-wrap"><table class="t"><tbody>${orphans.map((a, i) => lessonRow(a, i, orphans.length, '')).join('')}</tbody></table></div></section>` : ''}
+    ${mods.length ? mods.map(modHtml).join('') : '<section class="panel"><div class="empty">Nenhum módulo ainda. Clique em <b>+ Novo módulo</b>.</div></section>'}
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost" data-newM="1">+ Novo módulo</button>
+      <button class="btn btn-danger" id="delT">Excluir treinamento</button>
+    </div>`;
   $('#back').onclick = () => { OPEN = null; renderTrein(); };
   $('#delT').onclick = async () => {
-    if (!confirm(`Excluir "${t.title}" com todas as aulas, arquivos e resultados? Isto não pode ser desfeito.`)) return;
+    if (!confirm(`Excluir "${t.title}" com todos os módulos, aulas, arquivos e resultados? Isto não pode ser desfeito.`)) return;
     try { await api('deleteTraining', { id: t.id }); OPEN = null; renderTrein(); toast('Treinamento excluído'); } catch (x) { toast(x.message, true); }
   };
 }
 
+function moduleModal(m) {
+  const isNew = !m.id;
+  openModal(`<header><h3>${isNew ? 'Novo módulo' : 'Renomear módulo'}</h3><button class="x" data-close aria-label="Fechar">×</button></header>
+    <div class="body"><div class="form-grid">
+      <label class="f full">Nome do módulo *<input type="text" id="mTitle" value="${esc(m.title)}" maxlength="140" placeholder="Ex.: Módulo 2 — Técnica de implante"></label>
+      <label class="f full">Descrição <span class="hint">opcional</span><textarea id="mDesc" maxlength="1200" style="min-height:56px">${esc(m.description)}</textarea></label>
+    </div></div>
+    <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="mSave">${isNew ? 'Criar módulo' : 'Salvar'}</button></footer>`);
+  $('#mSave').onclick = async () => {
+    const b = $('#mSave'); b.disabled = true;
+    try { await api('saveModule', { id: m.id, treinamentoId: OPEN, title: $('#mTitle').value, description: $('#mDesc').value }); $('#ov').classList.remove('open'); renderDetail(); toast(isNew ? 'Módulo criado' : 'Salvo'); }
+    catch (x) { toast(x.message, true); b.disabled = false; }
+  };
+  $('#mTitle').focus();
+}
+
 document.addEventListener('click', async (e) => {
-  const el = e.target.closest('[data-open],[data-editT],[data-moveT],[data-newL],[data-editL],[data-delL],[data-moveL],[data-delP],[data-resend]');
+  const el = e.target.closest('[data-open],[data-editT],[data-moveT],[data-newL],[data-editL],[data-delL],[data-moveL],[data-delP],[data-resend],[data-newM],[data-editM],[data-delM],[data-moveM],[data-bulk]');
   if (!el) return;
   e.preventDefault();
   const d = el.dataset;
+  const t = OPEN && TR.find((x) => x.id === OPEN);
   try {
     if (d.open) { OPEN = d.open; renderDetail(); window.scrollTo(0, 0); }
-    else if (d.editt) trainingModal(TR.find((t) => t.id === d.editt));
+    else if (d.editt) trainingModal(TR.find((x) => x.id === d.editt));
     else if (d.movet != null) {
-      const ids = TR.map((t) => t.id), i = +d.movet, j = i + +d.dir;
+      const ids = TR.map((x) => x.id), i = +d.movet, j = i + +d.dir;
       [ids[i], ids[j]] = [ids[j], ids[i]];
       await api('reorder', { table: 'treinamentos', ids }); renderTrein();
-    } else if (d.newl) lessonModal({ kind: d.newl, treinamentoId: OPEN });
-    else if (d.editl) lessonModal(TR.find((t) => t.id === OPEN).aulas.find((a) => a.id === d.editl));
+    } else if (d.newm) moduleModal({});
+    else if (d.editm) moduleModal(t.modulos.find((m) => m.id === d.editm));
+    else if (d.delm) {
+      const m = t.modulos.find((x) => x.id === d.delm), n = lessonsOf(t, m).length;
+      if (!confirm(`Excluir o módulo "${m.title}"${n ? ` e as ${n} aula(s) dele (com arquivos e resultados dos quizzes)` : ''}?`)) return;
+      await api('deleteModule', { id: m.id }); renderDetail(); toast('Módulo excluído');
+    } else if (d.movem != null) {
+      const ids = t.modulos.map((m) => m.id), i = +d.movem, j = i + +d.dir;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      await api('reorder', { table: 'modulos', ids }); renderDetail();
+    } else if (d.bulk) bulkModal(d.bulk);
+    else if (d.newl) lessonModal({ kind: d.newl, treinamentoId: OPEN, moduloId: d.mod });
+    else if (d.editl) lessonModal(t.aulas.find((a) => a.id === d.editl));
     else if (d.dell) {
-      const a = TR.find((t) => t.id === OPEN).aulas.find((x) => x.id === d.dell);
+      const a = t.aulas.find((x) => x.id === d.dell);
       if (!confirm(`Excluir a aula "${a.title}"?${a.kind === 'quiz' ? ' As tentativas deste quiz também serão apagadas.' : ''}`)) return;
       await api('deleteLesson', { id: a.id }); renderDetail(); toast('Aula excluída');
     } else if (d.movel != null) {
-      const ids = TR.find((t) => t.id === OPEN).aulas.map((a) => a.id), i = +d.movel, j = i + +d.dir;
+      const ids = t.aulas.filter((a) => (a.moduloId || '') === d.mod || (!d.mod && !t.modulos.some((m) => m.id === a.moduloId))).map((a) => a.id);
+      const i = +d.movel, j = i + +d.dir;
       [ids[i], ids[j]] = [ids[j], ids[i]];
       await api('reorder', { ids }); renderDetail();
     } else if (d.resend) {
@@ -423,7 +509,7 @@ function quizBuilderHtml() {
     <div class="qb"></div>
     <button type="button" class="btn btn-ghost" data-qadd style="margin-top:12px">+ Adicionar pergunta</button></div>`;
 }
-function quizBuilder(root, questions) {
+function quizBuilder(root, questions, { onChange } = {}) {
   const quiz = { questions: JSON.parse(JSON.stringify(questions || [])) };
   const uid = ++UID;
   const qb = $('.qb', root);
@@ -441,6 +527,7 @@ function quizBuilder(root, questions) {
       ${q.options.length < 8 ? '<div style="margin-top:9px"><button type="button" class="btn btn-ghost btn-sm" data-oadd>+ Alternativa</button></div>' : ''}
       <input type="text" class="qexp" style="margin-top:9px;font-size:13px" value="${esc(q.explanation)}" placeholder="Explicação mostrada após responder (opcional)">
     </div>`).join('') || '<div class="empty" style="padding:16px">Nenhuma pergunta.</div>';
+    onChange?.();
   };
   const sync = () => {
     $$('.qcard', qb).forEach((c) => {
@@ -478,7 +565,93 @@ function quizBuilder(root, questions) {
   };
 }
 
-/* ---------- Treinamento: novo (com vídeo, apresentação e quiz) ou editar dados ---------- */
+/* ---------- Lista de vários arquivos (envio em fila) + links ---------- */
+// only: 'video' | 'apresentacao' | null (aceita os dois tipos e detecta pela extensão)
+function fileListHtml(only) {
+  const accept = only === 'video' ? VIDEO_EXT : only === 'apresentacao' ? APRES_EXT : [...VIDEO_EXT, ...APRES_EXT];
+  const label = only === 'video' ? 'Escolher vídeos (MP4)' : only === 'apresentacao' ? 'Escolher apresentações (PPTX ou PDF)' : 'Escolher arquivos: vídeos (MP4) e apresentações (PPTX ou PDF)';
+  return `<div class="fl">
+    <label class="drop">${label}<small>Pode selecionar <b>vários de uma vez</b> ou arrastar para cá · até 50 MB cada</small><input type="file" accept="${accept.map((x) => '.' + x).join(',')}"></label>
+    <div class="fl-items"></div>
+    <button type="button" class="btn btn-ghost btn-sm fl-link" style="margin-top:10px">+ Adicionar por link${only === 'video' ? ' (YouTube, Vimeo, Drive)' : only === 'apresentacao' ? ' (Google Slides, OneDrive)' : ''}</button>
+  </div>`;
+}
+function fileList(root, only, { onChange } = {}) {
+  const items = []; // { kind, title, mediaUrl, fileName, size, state: 'fila'|'enviando'|'ok'|'erro', error, link:true? }
+  let running = false;
+  const box = $('.fl-items', root);
+  const changed = () => { render(); onChange?.(); };
+  const render = () => {
+    box.innerHTML = items.map((it, i) => `<div class="fl-row ${it.state}" data-i="${i}">
+      <span class="ic ${it.kind}">${I[it.kind]}</span>
+      <div class="fl-main">
+        <input type="text" class="fl-title" value="${esc(it.title)}" maxlength="140" placeholder="Título da aula">
+        ${it.link ? `<div class="fl-linkrow">${only ? '' : `<select class="fl-kind"><option value="video" ${it.kind === 'video' ? 'selected' : ''}>Vídeo</option><option value="apresentacao" ${it.kind === 'apresentacao' ? 'selected' : ''}>Apresentação</option></select>`}
+            <input type="url" class="fl-url" value="${esc(it.mediaUrl)}" placeholder="https://…"></div>`
+          : `<div class="fl-meta">${esc(it.fileName)} · ${fmtSize(it.size)} · <b>${it.state === 'ok' ? 'enviado ✓' : it.state === 'enviando' ? 'enviando…' : it.state === 'erro' ? 'erro: ' + esc(it.error) : 'na fila'}</b></div>
+            ${it.state === 'enviando' || it.state === 'fila' ? `<div class="prog"><i style="width:${it.pct || 0}%"></i></div>` : ''}`}
+      </div>
+      ${it.state === 'enviando' ? '' : '<button type="button" class="xbtn fl-del" title="Remover">×</button>'}
+    </div>`).join('');
+  };
+  box.addEventListener('input', (e) => {
+    const row = e.target.closest('.fl-row'); if (!row) return;
+    const it = items[+row.dataset.i];
+    if (e.target.classList.contains('fl-title')) it.title = e.target.value;
+    if (e.target.classList.contains('fl-url')) { it.mediaUrl = e.target.value.trim(); onChange?.(); }
+  });
+  box.addEventListener('change', (e) => { if (e.target.classList.contains('fl-kind')) { items[+e.target.closest('.fl-row').dataset.i].kind = e.target.value; changed(); } });
+  box.addEventListener('click', (e) => { const b = e.target.closest('.fl-del'); if (b) { items.splice(+b.closest('.fl-row').dataset.i, 1); changed(); } });
+  $('.fl-link', root).onclick = () => { items.push({ kind: only || 'video', title: '', mediaUrl: '', link: true, state: 'ok' }); changed(); $$('.fl-url', box).pop()?.focus(); };
+  // envia um arquivo por vez, na ordem escolhida
+  const pump = async () => {
+    if (running) return; running = true;
+    for (let it; (it = items.find((x) => x.state === 'fila'));) {
+      it.state = 'enviando'; render();
+      const row = () => box.querySelector(`.fl-row[data-i="${items.indexOf(it)}"] .prog i`);
+      try {
+        it.mediaUrl = await upload(it.file, it.kind, it.file.name, progressSink((w) => { it.pct = parseInt(w); const r = row(); if (r) r.style.width = w; }));
+        it.state = 'ok';
+      } catch (x) { it.state = 'erro'; it.error = x.message; }
+      changed();
+    }
+    running = false;
+  };
+  dropzone($('.drop', root), (files) => {
+    const bad = [];
+    files.forEach((f) => {
+      const k = kindOf(f.name);
+      if (!k || (only && k !== only)) return bad.push(f.name);
+      items.push({ kind: k, title: titleFromFile(f.name), file: f, fileName: f.name, size: f.size, state: 'fila' });
+    });
+    if (bad.length) toast(`Formato não aceito: ${bad.join(', ')}`, true);
+    changed(); pump();
+  }, true);
+  return {
+    busy: () => items.some((x) => x.state === 'fila' || x.state === 'enviando'),
+    failed: () => items.filter((x) => x.state === 'erro').length,
+    // aulas prontas para salvar (arquivos enviados + links preenchidos)
+    lessons: () => items.filter((x) => x.state === 'ok' && x.mediaUrl).map((x) => ({
+      kind: x.kind, title: x.title.trim() || (x.fileName ? titleFromFile(x.fileName) : KIND[x.kind]), mediaUrl: x.mediaUrl,
+      fileName: x.link ? '' : x.fileName, size: x.link ? 0 : x.size,
+    })),
+  };
+}
+// o objeto passado como "bar" em upload() só precisa de style.width; este adaptador repassa o progresso
+// (upload() faz bar.style.width = '42%')
+function progressSink(set) { return { style: { set width(w) { set(w); } } }; }
+
+// Perguntas do montador → formato do servidor (descarta alternativas vazias mantendo a correta no lugar)
+function prepQuestions(questions) {
+  const bad = questions.findIndex((q) => !q.text.trim() || q.options.filter((o) => o.trim()).length < 2 || q.correct == null || !q.options[q.correct]?.trim());
+  if (bad >= 0) throw new Error(`Quiz, pergunta ${bad + 1}: preencha o enunciado, pelo menos 2 alternativas e marque a correta.`);
+  return questions.map((q) => {
+    const keep = q.options.map((o, i) => [o.trim(), i]).filter(([o]) => o);
+    return { text: q.text, explanation: q.explanation, options: keep.map(([o]) => o), correct: keep.findIndex(([, i]) => i === q.correct) };
+  });
+}
+
+/* ---------- Treinamento: novo (dados + 1º módulo com vídeos, apresentações e quiz) ou editar dados ---------- */
 function trainingModal(t) {
   const isNew = !t; t = t || { published: true };
   const areas = [...new Set(TR.map((x) => x.area).filter(Boolean))];
@@ -489,11 +662,12 @@ function trainingModal(t) {
       <label class="f">Área<input type="text" id="tArea" value="${esc(t.area)}" maxlength="60" list="areaList" placeholder="Ex.: Cardiologia, Endovascular"><datalist id="areaList">${areas.map((a) => `<option value="${esc(a)}">`).join('')}</datalist></label>
       <label class="f" style="justify-content:flex-end"><span></span><label class="check"><input type="checkbox" id="tPub" ${t.published ? 'checked' : ''}> Publicado (visível para os participantes)</label></label>
       <label class="f full">Descrição<textarea id="tDesc" maxlength="1200" placeholder="O que o participante vai aprender">${esc(t.description)}</textarea></label>
+      ${isNew ? `<label class="f full">Nome do primeiro módulo<input type="text" id="tMod" maxlength="140" placeholder="Módulo 1"><span class="hint">Vídeos, apresentações e quiz das próximas abas entram neste módulo. Depois de criar, você pode adicionar outros módulos.</span></label>` : ''}
     </div>`;
 
   if (!isNew) {
     openModal(`<header><h3>Editar dados do treinamento</h3><button class="x" data-close aria-label="Fechar">×</button></header>
-      <div class="body">${dados}<p class="hint" style="margin:14px 0 0">Vídeos, apresentações e quizzes são editados na lista de aulas do treinamento.</p></div>
+      <div class="body">${dados}<p class="hint" style="margin:14px 0 0">Módulos, vídeos, apresentações e quizzes são editados na página do treinamento.</p></div>
       <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="tSave">Salvar</button></footer>`);
     $('#tSave').onclick = async () => {
       const b = $('#tSave'); b.disabled = true;
@@ -506,27 +680,16 @@ function trainingModal(t) {
   openModal(`<header><h3>Novo treinamento</h3><button class="x" data-close aria-label="Fechar">×</button></header>
     <nav class="mtabs">
       <button type="button" class="on" data-pane="dados"><span class="dot">1</span> Dados</button>
-      <button type="button" data-pane="video"><span class="dot">2</span> Vídeo</button>
-      <button type="button" data-pane="apres"><span class="dot">3</span> Apresentação</button>
+      <button type="button" data-pane="video"><span class="dot">2</span> Vídeos</button>
+      <button type="button" data-pane="apres"><span class="dot">3</span> Apresentações</button>
       <button type="button" data-pane="quiz"><span class="dot">4</span> Quiz</button>
     </nav>
     <div class="body">
       <div class="pane" data-p="dados">${dados}</div>
-      <div class="pane hidden" data-p="video">
-        <div class="form-grid">
-          <label class="f">Título da aula<input type="text" id="vTitle" maxlength="140" placeholder="Vídeo de treinamento"></label>
-          <label class="f">Duração (min)<input type="number" id="vDur" min="0" max="999"></label>
-          <div class="full" id="vPick">${mediaPickerHtml('video')}</div>
-        </div>
-        <p class="hint" style="margin:12px 0 0">Opcional. Você pode adicionar mais vídeos depois, na lista de aulas.</p>
-      </div>
-      <div class="pane hidden" data-p="apres">
-        <div class="form-grid">
-          <label class="f full">Título da aula<input type="text" id="aTitle" maxlength="140" placeholder="Apresentação do produto"></label>
-          <div class="full" id="aPick">${mediaPickerHtml('apresentacao')}</div>
-        </div>
-        <p class="hint" style="margin:12px 0 0">Opcional. Aceita PowerPoint (PPTX) ou PDF.</p>
-      </div>
+      <div class="pane hidden" data-p="video"><div id="vList">${fileListHtml('video')}</div>
+        <p class="hint" style="margin:12px 0 0">Opcional. Cada vídeo vira uma aula; o título vem do nome do arquivo e pode ser editado.</p></div>
+      <div class="pane hidden" data-p="apres"><div id="aList">${fileListHtml('apresentacao')}</div>
+        <p class="hint" style="margin:12px 0 0">Opcional. Aceita PowerPoint (PPTX) ou PDF; cada arquivo vira uma aula.</p></div>
       <div class="pane hidden" data-p="quiz">
         <div class="form-grid" style="margin-bottom:14px">
           <label class="f">Título do quiz<input type="text" id="qTitle" maxlength="140" placeholder="Quiz do produto"></label>
@@ -540,41 +703,35 @@ function trainingModal(t) {
   const tabs = $$('.mtabs button');
   const show = (p) => { tabs.forEach((b) => b.classList.toggle('on', b.dataset.pane === p)); $$('.pane').forEach((x) => x.classList.toggle('hidden', x.dataset.p !== p)); };
   tabs.forEach((b) => b.onclick = () => show(b.dataset.pane));
-  const vid = mediaPicker($('#vPick'), 'video', {}, { saveBtn: '#tSave' });
-  const apr = mediaPicker($('#aPick'), 'apresentacao', {}, { saveBtn: '#tSave', onUploaded: (f) => { if (!$('#aTitle').value.trim()) $('#aTitle').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); } });
-  const qz = quizBuilder($('#qPick'), Array.from({ length: QUIZ_DEFAULT }, blankQ));
+  let vids, aprs;
   const summary = () => {
-    const n = qz.get().length;
-    const parts = [vid.filled() && 'vídeo', apr.filled() && 'apresentação', n && `quiz (${n} ${n === 1 ? 'pergunta' : 'perguntas'})`].filter(Boolean);
-    $('#tSum').textContent = parts.length ? 'Será criado com: ' + parts.join(', ') : 'Sem aulas ainda: dá para adicionar depois';
-    tabs[1].classList.toggle('ok', vid.filled()); tabs[2].classList.toggle('ok', apr.filled()); tabs[3].classList.toggle('ok', n > 0);
+    if (!vids || !aprs || !$('#tSum')) return;
+    const nv = vids.lessons().length, na = aprs.lessons().length, nq = qz.get().length;
+    const parts = [nv && `${nv} ${nv === 1 ? 'vídeo' : 'vídeos'}`, na && `${na} ${na === 1 ? 'apresentação' : 'apresentações'}`, nq && `quiz (${nq} ${nq === 1 ? 'pergunta' : 'perguntas'})`].filter(Boolean);
+    $('#tSum').textContent = vids.busy() || aprs.busy() ? 'Enviando arquivos…' : parts.length ? 'Será criado com: ' + parts.join(', ') : 'Sem aulas ainda: dá para adicionar depois';
+    tabs[1].classList.toggle('ok', nv > 0); tabs[2].classList.toggle('ok', na > 0); tabs[3].classList.toggle('ok', nq > 0);
   };
-  $('#modal').addEventListener('mediachange', summary);
-  $('#modal').addEventListener('input', summary);
-  $('#modal').addEventListener('change', summary);
+  const qz = quizBuilder($('#qPick'), Array.from({ length: QUIZ_DEFAULT }, blankQ), { onChange: () => summary() });
+  vids = fileList($('#vList'), 'video', { onChange: summary });
+  aprs = fileList($('#aList'), 'apresentacao', { onChange: summary });
+  // escuta só dentro desta janela (o #modal é reaproveitado pelas próximas)
+  const scope = $('#modal .body');
+  ['input', 'change', 'click'].forEach((ev) => scope.addEventListener(ev, () => setTimeout(summary, 0)));
   summary();
 
   $('#tSave').onclick = async () => {
     const d = readDados();
     if (!d.title.trim()) { show('dados'); $('#tTitle').focus(); return toast('Informe o título do treinamento.', true); }
-    const nome = d.product.trim() || d.title.trim();
-    const lessons = [];
-    if (vid.filled()) lessons.push({ kind: 'video', title: $('#vTitle').value.trim() || 'Vídeo de treinamento', durationMin: $('#vDur').value, ...vid.get() });
-    if (apr.filled()) lessons.push({ kind: 'apresentacao', title: $('#aTitle').value.trim() || 'Apresentação do produto', ...apr.get() });
+    if (vids.busy() || aprs.busy()) return toast('Aguarde os arquivos terminarem de enviar.', true);
+    const lessons = [...vids.lessons(), ...aprs.lessons()];
     const questions = qz.get();
     if (questions.length) {
-      const bad = questions.findIndex((q) => !q.text.trim() || q.options.filter((o) => o.trim()).length < 2 || q.correct == null || !q.options[q.correct]?.trim());
-      if (bad >= 0) { show('quiz'); return toast(`Quiz, pergunta ${bad + 1}: preencha o enunciado, pelo menos 2 alternativas e marque a correta.`, true); }
-      lessons.push({ kind: 'quiz', title: $('#qTitle').value.trim() || `Quiz — ${nome}`, passScore: $('#qPass').value,
-        quiz: { questions: questions.map((q) => {
-          // remove alternativas vazias mantendo a correta no lugar certo
-          const keep = q.options.map((o, i) => [o.trim(), i]).filter(([o]) => o);
-          return { text: q.text, explanation: q.explanation, options: keep.map(([o]) => o), correct: keep.findIndex(([, i]) => i === q.correct) };
-        }) } });
+      let qs; try { qs = prepQuestions(questions); } catch (x) { show('quiz'); return toast(x.message, true); }
+      lessons.push({ kind: 'quiz', title: $('#qTitle').value.trim() || `Quiz — ${d.product.trim() || d.title.trim()}`, passScore: $('#qPass').value, quiz: { questions: qs } });
     }
     const b = $('#tSave'); b.disabled = true; b.textContent = 'Criando…';
     try {
-      const r = await api('createFull', { ...d, lessons });
+      const r = await api('createFull', { ...d, modulos: [{ title: $('#tMod').value.trim() || 'Módulo 1', lessons }] });
       OPEN = r.createdId || null;
       $('#ov').classList.remove('open'); renderTrein();
       toast(lessons.length ? `Treinamento criado com ${lessons.length} ${lessons.length === 1 ? 'aula' : 'aulas'}` : 'Treinamento criado. Adicione as aulas.');
@@ -586,13 +743,42 @@ function readDados() {
   return { title: $('#tTitle').value, product: $('#tProd').value, manufacturer: $('#tMfr').value, area: $('#tArea').value, description: $('#tDesc').value, published: $('#tPub').checked };
 }
 
-/* ---------- Aula avulsa (na lista de aulas) ---------- */
+/* ---------- Vários arquivos de uma vez num módulo ---------- */
+function bulkModal(moduloId) {
+  const t = TR.find((x) => x.id === OPEN), m = t.modulos.find((x) => x.id === moduloId);
+  openModal(`<header><h3>Enviar arquivos · ${esc(m.title)}</h3><button class="x" data-close aria-label="Fechar">×</button></header>
+    <div class="body"><div id="bList">${fileListHtml(null)}</div>
+      <p class="hint" style="margin:12px 0 0">Cada arquivo vira uma aula deste módulo, na ordem da lista. Vídeos e apresentações são reconhecidos pela extensão. Os títulos podem ser editados antes de salvar.</p></div>
+    <footer><span class="hint" id="bSum" style="margin-right:auto;align-self:center"></span><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="bSave" disabled>Adicionar aulas</button></footer>`, true);
+  const sum = () => {
+    const n = list.lessons().length, busy = list.busy(), f = list.failed();
+    $('#bSum').textContent = busy ? 'Enviando arquivos…' : n ? `${n} ${n === 1 ? 'aula pronta' : 'aulas prontas'}${f ? ` · ${f} com erro` : ''}` : '';
+    $('#bSave').disabled = busy || !n;
+    $('#bSave').textContent = n ? `Adicionar ${n} ${n === 1 ? 'aula' : 'aulas'}` : 'Adicionar aulas';
+  };
+  const list = fileList($('#bList'), null, { onChange: sum });
+  $('#bSave').onclick = async () => {
+    const b = $('#bSave'); b.disabled = true;
+    try {
+      const ls = list.lessons();
+      await api('addLessons', { treinamentoId: t.id, moduloId, lessons: ls });
+      $('#ov').classList.remove('open'); renderDetail(); toast(`${ls.length} ${ls.length === 1 ? 'aula adicionada' : 'aulas adicionadas'} em ${m.title}`);
+    } catch (x) { toast(x.message, true); b.disabled = false; }
+  };
+  sum();
+}
+
+/* ---------- Aula avulsa ---------- */
 function lessonModal(a) {
   const isNew = !a.id, kind = a.kind;
+  const t = TR.find((x) => x.id === (a.treinamentoId || OPEN));
+  const mods = t?.modulos || [];
+  const modSel = mods.length > 1 || (!isNew && mods.length) ? `<label class="f full">Módulo<select id="lMod">${mods.map((m, i) => `<option value="${m.id}" ${m.id === a.moduloId ? 'selected' : ''}>Módulo ${i + 1} · ${esc(m.title)}</option>`).join('')}</select></label>` : '';
   openModal(`<header><h3>${isNew ? 'Nova aula' : 'Editar aula'} · ${KIND[kind]}</h3><button class="x" data-close aria-label="Fechar">×</button></header>
     <div class="body"><div class="form-grid">
       <label class="f ${kind === 'video' ? '' : 'full'}">Título *<input type="text" id="lTitle" value="${esc(a.title)}" maxlength="140" placeholder="${kind === 'quiz' ? 'Ex.: Quiz — Vesselin' : kind === 'video' ? 'Ex.: Indicações e técnica de implante' : 'Ex.: Apresentação técnica do produto'}"></label>
       ${kind === 'video' ? `<label class="f">Duração (min)<input type="number" id="lDur" min="0" max="999" value="${a.durationMin ?? ''}"></label>` : ''}
+      ${modSel}
       <label class="f full">${kind === 'quiz' ? 'Instruções' : 'Descrição'} <span class="hint">opcional</span><textarea id="lDesc" maxlength="1200" style="min-height:56px">${esc(a.description)}</textarea></label>
       ${kind === 'quiz' ? `<label class="f">Nota mínima para aprovação (%)<input type="number" id="lPass" min="0" max="100" value="${a.passScore ?? 70}"></label>
         <div class="full" id="lQuiz">${quizBuilderHtml()}</div>`
@@ -601,12 +787,12 @@ function lessonModal(a) {
     <footer><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="lSave">${isNew ? 'Adicionar aula' : 'Salvar'}</button></footer>`, kind === 'quiz');
 
   const pick = kind !== 'quiz' && mediaPicker($('#lPick'), kind, a, { saveBtn: '#lSave',
-    onUploaded: (f) => { if (!$('#lTitle').value.trim()) $('#lTitle').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); } });
+    onUploaded: (f) => { if (!$('#lTitle').value.trim()) $('#lTitle').value = titleFromFile(f.name); } });
   const qz = kind === 'quiz' && quizBuilder($('#lQuiz'), a.quiz?.questions?.length ? a.quiz.questions : Array.from({ length: QUIZ_DEFAULT }, blankQ));
 
   $('#lSave').onclick = async () => {
     const b = $('#lSave'); b.disabled = true;
-    const item = { id: a.id, treinamentoId: a.treinamentoId, kind, title: $('#lTitle').value, description: $('#lDesc').value, durationMin: $('#lDur')?.value };
+    const item = { id: a.id, treinamentoId: a.treinamentoId || OPEN, moduloId: $('#lMod')?.value || a.moduloId, kind, title: $('#lTitle').value, description: $('#lDesc').value, durationMin: $('#lDur')?.value };
     if (kind === 'quiz') { item.quiz = { questions: qz.get() }; item.passScore = $('#lPass').value; }
     else Object.assign(item, pick.get());
     try { await api('saveLesson', item); $('#ov').classList.remove('open'); renderDetail(); toast(isNew ? 'Aula adicionada' : 'Salvo'); }
