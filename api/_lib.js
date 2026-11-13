@@ -64,7 +64,7 @@ export const publicUrl = (path) => PUBLIC_PREFIX() + path.split('/').map(encodeU
 export function storagePath(url) {
   if (typeof url !== 'string' || !url.startsWith(PUBLIC_PREFIX())) return null;
   const path = decodeURIComponent(url.slice(PUBLIC_PREFIX().length));
-  return /^(videos|apresentacoes|capas)\/[a-z0-9-]+\.(mp4|webm|mov|pdf|pptx|ppt|jpg)$/.test(path) ? path : null;
+  return /^(videos|apresentacoes|capas)\/[a-z0-9-]+\.(mp4|webm|mov|pdf|pptx|ppt|docx|doc|xlsx|xls|jpg|jpeg|png)$/.test(path) ? path : null;
 }
 export const isOwnFile = (url, folder) => (storagePath(url) || '').startsWith(folder + '/');
 

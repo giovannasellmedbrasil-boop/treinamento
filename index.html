@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <title>Treinamentos · Sellmed Brasil</title>
-<meta name="description" content="Plataforma de treinamentos sobre os produtos da Sellmed Brasil: vídeos, apresentações e quizzes.">
+<meta name="description" content="Plataforma de treinamentos da Sellmed Brasil: cursos com vídeos, materiais e quizzes.">
 <meta name="theme-color" content="#0C2F79">
 <link rel="icon" href="assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -172,6 +172,8 @@
   .player.doc{aspect-ratio:auto;height:min(76vh,760px);background:#EEF2F5;}
   .player .note{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#C9D5EE;text-align:center;padding:30px;font-size:14px;line-height:1.5;}
   .player.doc .note{color:var(--text);}
+  .player.imgv{display:flex;align-items:center;justify-content:center;background:#F4F6F8;}
+  .player.imgv img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
   .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 22px 20px;border-top:1px solid var(--border);margin-top:14px;}
   .actions .spacer{flex:1;}
   .done-pill{display:inline-flex;align-items:center;gap:6px;background:var(--green-soft);color:var(--green-dk);font-weight:700;font-size:13px;padding:8px 13px;border-radius:999px;}
@@ -238,7 +240,7 @@
     <div class="logo"><img src="assets/logo.svg" alt="Sellmed Brasil"></div>
     <p class="kicker">Plataforma de Treinamentos</p>
     <h2>Conheça a fundo cada produto Sellmed</h2>
-    <p class="lead">Assista aos treinamentos, consulte as apresentações e teste o que aprendeu com os quizzes. Seu progresso fica salvo.</p>
+    <p class="lead">Faça os cursos: assista aos vídeos, consulte os materiais e teste o que aprendeu com os quizzes. Seu progresso fica salvo.</p>
     <div class="feats">
       <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73CC6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg> Vídeos</span>
       <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73CC6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Apresentações</span>
@@ -249,7 +251,7 @@
   <div class="form">
     <!-- Entrar -->
     <form class="gv" data-v="login" novalidate>
-      <h3>Acessar treinamentos</h3>
+      <h3>Acessar a plataforma</h3>
       <p>Entre com seu e-mail Sellmed e sua senha.</p>
       <div class="err hidden"></div>
       <label class="f">E-mail Sellmed<input name="email" type="email" autocomplete="username" placeholder="nome@sellmedbrasil.com" required></label>
@@ -340,7 +342,15 @@ const I = {
   layers: SVG('<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>'),
   award: SVG('<circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>'),
 };
-const KIND = { video: 'Vídeo', apresentacao: 'Apresentação', quiz: 'Quiz' };
+const KIND = { video: 'Vídeo', apresentacao: 'Material', quiz: 'Quiz' };
+const extOfName = (n) => (String(n || '').toLowerCase().split('?')[0].match(/\.([a-z0-9]{2,5})$/) || [])[1] || '';
+function kindLabel(a) {
+  if (a.kind !== 'apresentacao') return KIND[a.kind];
+  const e = extOfName(a.fileName || a.mediaUrl);
+  return e === 'pdf' ? 'PDF' : ['ppt', 'pptx'].includes(e) ? 'Apresentação' : ['doc', 'docx'].includes(e) ? 'Documento'
+    : ['xls', 'xlsx'].includes(e) ? 'Planilha' : ['jpg', 'jpeg', 'png'].includes(e) ? 'Imagem' : /docs\.google\.com\/presentation/.test(a.mediaUrl || '') ? 'Apresentação' : 'Material';
+}
+const OFFICE_EXT = ['pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls'];
 const LETTERS = 'ABCDEFGH';
 
 let S = { p: null, trainings: [], done: new Set(), quizzes: new Map() };
@@ -473,7 +483,7 @@ $('.gv[data-v="senha"]').addEventListener('submit', (e) => {
 function cardCover(t, pr) {
   const badge = pr.n && pr.d === pr.n ? `<span class="badge">${I.check} Concluído</span>` : '';
   if (t.coverUrl) return `<div class="cover"><img class="ph" src="${esc(t.coverUrl)}" alt="" loading="lazy">${badge}</div>`;
-  return `<div class="cover"><div class="gen"><small>${esc(t.product || t.area || 'Treinamento')}</small><b>${esc(t.title)}</b></div>${badge}</div>`;
+  return `<div class="cover"><div class="gen"><small>${esc(t.product || t.area || 'Curso')}</small><b>${esc(t.title)}</b></div>${badge}</div>`;
 }
 
 function renderHome() {
@@ -499,7 +509,7 @@ function renderHome() {
         <div class="tagrow">${t.area ? `<span class="tag">${esc(t.area)}</span>` : ''}${t.manufacturer ? `<span class="tag t">${esc(t.manufacturer)}</span>` : ''}</div>
         <h4>${esc(t.title)}</h4>
         ${t.description ? `<p>${esc(t.description)}</p>` : ''}
-        <div class="kinds">${(t.modulos || []).length > 1 ? `<span>${I.layers} ${t.modulos.length} módulos</span>` : ''}${['video', 'apresentacao', 'quiz'].filter(k).map((x) => `<span>${I[x]} ${k(x)} ${x === 'video' ? (k(x) > 1 ? 'vídeos' : 'vídeo') : x === 'quiz' ? (k(x) > 1 ? 'quizzes' : 'quiz') : (k(x) > 1 ? 'apresentações' : 'apresentação')}</span>`).join('')}</div>
+        <div class="kinds">${(t.modulos || []).length ? `<span>${I.layers} ${t.modulos.length} ${t.modulos.length === 1 ? 'módulo' : 'módulos'}</span>` : ''}${['video', 'apresentacao', 'quiz'].filter(k).map((x) => `<span>${I[x]} ${k(x)} ${x === 'video' ? (k(x) > 1 ? 'vídeos' : 'vídeo') : x === 'quiz' ? (k(x) > 1 ? 'quizzes' : 'quiz') : (k(x) > 1 ? 'materiais' : 'material')}</span>`).join('')}</div>
         <div class="foot">
           <div class="barrow"><div class="bar"><i style="width:${pr.pct}%"></i></div>${pr.pct}%</div>
           <div class="cta"><span class="btn ${pr.n && pr.d === pr.n ? 'btn-ghost' : 'btn-primary'}">${label}</span></div>
@@ -513,10 +523,10 @@ function renderHome() {
       <div class="txt">
         <p class="kicker">Plataforma de Treinamentos</p>
         <h2>Olá, ${esc(first)}!</h2>
-        <p class="lead">Escolha um treinamento para assistir aos vídeos, ver as apresentações e responder aos quizzes de cada produto.</p>
+        <p class="lead">Escolha um curso para assistir aos vídeos, ver os materiais e responder aos quizzes.</p>
       </div>
       <div class="stats">
-        <div class="stat"><b>${all.length}</b><span>Treinamentos</span></div>
+        <div class="stat"><b>${all.length}</b><span>${all.length === 1 ? 'Curso' : 'Cursos'}</span></div>
         <div class="stat"><b>${totalL ? Math.round((doneL / totalL) * 100) : 0}%</b><span>Seu progresso</span></div>
         <div class="stat"><b>${doneT}</b><span>Concluídos</span></div>
       </div>
@@ -524,14 +534,14 @@ function renderHome() {
     <main>
       <div class="searchbox">
         <label class="search">${SVG('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', 18)}
-          <input id="q" type="search" placeholder="Buscar treinamento, produto ou fabricante…" value="${esc(FILTER.q)}" autocomplete="off" aria-label="Buscar treinamento"></label>
+          <input id="q" type="search" placeholder="Buscar curso, produto ou tema…" value="${esc(FILTER.q)}" autocomplete="off" aria-label="Buscar curso"></label>
         ${areas.length > 1 ? `<div class="chips">${[['', 'Todas as áreas', all.length], ...areas.map((a) => [a, a, all.filter((t) => t.area === a).length])]
           .map(([v, l, n]) => `<button class="chip ${FILTER.area === v ? 'active' : ''}" data-area="${esc(v)}">${esc(l)}<span class="n">${n}</span></button>`).join('')}</div>` : ''}
       </div>
-      ${!all.length ? '<div class="empty"><b>Nenhum treinamento publicado ainda</b>Os treinamentos aparecerão aqui assim que forem adicionados.</div>'
-        : !shown.length ? '<div class="empty"><b>Nenhum treinamento encontrado</b>Tente outro termo de busca ou limpe os filtros.</div>'
+      ${!all.length ? '<div class="empty"><b>Nenhum curso publicado ainda</b>Os cursos aparecerão aqui assim que forem adicionados.</div>'
+        : !shown.length ? '<div class="empty"><b>Nenhum curso encontrado</b>Tente outro termo de busca ou limpe os filtros.</div>'
         : (inProgress.length ? `<h3 class="section-h">Continue de onde parou <small>${inProgress.length}</small></h3><div class="cards">${inProgress.map(card).join('')}</div>` : '') +
-          (rest.length ? `<h3 class="section-h">${inProgress.length ? 'Outros treinamentos' : 'Treinamentos disponíveis'} <small>${rest.length}</small></h3><div class="cards">${rest.map(card).join('')}</div>` : '')}
+          (rest.length ? `<h3 class="section-h">${inProgress.length ? 'Outros cursos' : 'Cursos disponíveis'} <small>${rest.length}</small></h3><div class="cards">${rest.map(card).join('')}</div>` : '')}
     </main>`;
   const qi = $('#q');
   qi.addEventListener('input', () => { FILTER.q = qi.value; const pos = qi.selectionStart; renderHome(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
@@ -559,8 +569,9 @@ function mediaHtml(a) {
   }
   // apresentação
   if (e === 'pdf') return `<div class="player doc"><iframe src="${esc(u)}#view=FitH" title="${esc(a.title)}"></iframe></div>`;
-  if (e === 'pptx' || e === 'ppt') {
-    if (isLocalHost) return `<div class="player doc"><div class="note"><b style="color:var(--navy)">A pré-visualização do PowerPoint aparece no site publicado.</b>No computador local, use o botão Baixar para abrir o arquivo.</div></div>`;
+  if (['jpg', 'jpeg', 'png'].includes(e)) return `<div class="player doc imgv"><img src="${esc(u)}" alt="${esc(a.title)}"></div>`;
+  if (OFFICE_EXT.includes(e)) {
+    if (isLocalHost) return `<div class="player doc"><div class="note"><b style="color:var(--navy)">A pré-visualização de arquivos do Office aparece no site publicado.</b>No computador local, use o botão Baixar para abrir o arquivo.</div></div>`;
     return `<div class="player doc"><iframe src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(u)}" allowfullscreen title="${esc(a.title)}"></iframe></div>`;
   }
   const em = embedUrl(u);
@@ -570,8 +581,8 @@ function mediaHtml(a) {
 /* ---------- Treinamento ---------- */
 function renderCourse(slug, aulaId) {
   const t = S.trainings.find((x) => x.slug === slug);
-  if (!t) { $('#view').innerHTML = '<main style="margin-top:30px"><div class="empty"><b>Treinamento não encontrado</b><a href="#/">Voltar ao início</a></div></main>'; return; }
-  if (!t.aulas.length) { $('#view').innerHTML = `<div class="course"><div class="crumb"><a href="#/">Treinamentos</a> › ${esc(t.title)}</div><div class="empty"><b>Conteúdo em preparação</b>As aulas deste treinamento serão publicadas em breve.</div></div>`; return; }
+  if (!t) { $('#view').innerHTML = '<main style="margin-top:30px"><div class="empty"><b>Curso não encontrado</b><a href="#/">Voltar ao início</a></div></main>'; return; }
+  if (!t.aulas.length) { $('#view').innerHTML = `<div class="course"><div class="crumb"><a href="#/">Cursos</a> › ${esc(t.title)}</div><div class="empty"><b>Conteúdo em preparação</b>O conteúdo deste curso será publicado em breve.</div></div>`; return; }
   const a = t.aulas.find((x) => x.id === aulaId) || t.aulas.find((x) => !S.done.has(x.id)) || t.aulas[0];
   if (a.id !== aulaId) history.replaceState(null, '', `#/t/${t.slug}/${a.id}`);
   const idx = t.aulas.indexOf(a), next = t.aulas[idx + 1];
@@ -591,20 +602,20 @@ function renderCourse(slug, aulaId) {
       if (m) head = `<div class="mod-h ${dn === ls.length ? 'ok' : ''}"><span>Módulo ${modIdx.get(x.moduloId) + 1}</span><b>${esc(m.title)}</b><small>${dn}/${ls.length}</small></div>`;
     }
     const done = S.done.has(x.id), qz = S.quizzes.get(x.id);
-    const sub = [KIND[x.kind], x.durationMin && x.durationMin + ' min', x.kind === 'quiz' && `${x.quiz.questions.length} ${x.quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}`, qz && `melhor nota ${qz.best}%`].filter(Boolean).join(' · ');
+    const sub = [kindLabel(x), x.durationMin && x.durationMin + ' min', x.kind === 'quiz' && `${x.quiz.questions.length} ${x.quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}`, qz && `melhor nota ${qz.best}%`].filter(Boolean).join(' · ');
     return head + `<a class="lesson ${x.id === a.id ? 'on' : ''} ${done ? 'done' : ''}" href="#/t/${esc(t.slug)}/${x.id}">
       <span class="ic">${done ? I.check : I[x.kind]}</span><span class="t">${esc(x.title)}<small>${esc(sub)}</small></span><span class="n">${i + 1}</span></a>`;
   }).join('');
 
   $('#view').innerHTML = `
     <div class="course">
-      <div class="crumb"><a href="#/">Treinamentos</a> › <span>${esc(t.title)}</span></div>
+      <div class="crumb"><a href="#/">Cursos</a> › <span>${esc(t.title)}</span></div>
       <div class="layout">
         <aside class="side-list">
-          <div class="head"><small>${esc([t.area, t.product].filter(Boolean).join(' · ') || 'Treinamento')}</small><h3>${esc(t.title)}</h3>
+          <div class="head"><small>${esc([t.area, t.product].filter(Boolean).join(' · ') || 'Curso')}</small><h3>${esc(t.title)}</h3>
             <div class="barrow"><div class="bar"><i style="width:${pr.pct}%"></i></div>${pr.d}/${pr.n}</div></div>
           <nav class="lessons" aria-label="Aulas">${list}</nav>
-          ${complete ? `<div class="cert">${I.award} Treinamento concluído! <button class="btn btn-green btn-sm" id="certBtn">Emitir certificado</button></div>` : ''}
+          ${complete ? `<div class="cert">${I.award} Curso concluído! <button class="btn btn-green btn-sm" id="certBtn">Emitir certificado</button></div>` : ''}
         </aside>
         <section class="stage" id="stage"></section>
       </div>
@@ -616,7 +627,7 @@ function renderCourse(slug, aulaId) {
 function lessonTop(a, i, t) {
   const mi = (t.modulos || []).findIndex((m) => m.id === a.moduloId), m = t.modulos?.[mi];
   const modTxt = m && t.modulos.length > 1 ? `Módulo ${mi + 1}: ${esc(m.title)} · ` : '';
-  return `<div class="top"><div class="txt"><span class="kicker">${modTxt}Aula ${i + 1} de ${t.aulas.length} · ${KIND[a.kind]}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</span><h2>${esc(a.title)}</h2></div></div>`;
+  return `<div class="top"><div class="txt"><span class="kicker">${modTxt}Item ${i + 1} de ${t.aulas.length} · ${kindLabel(a)}${a.durationMin ? ' · ' + a.durationMin + ' min' : ''}</span><h2>${esc(a.title)}</h2></div></div>`;
 }
 
 function renderLesson(t, a, next) {
@@ -630,9 +641,9 @@ function renderLesson(t, a, next) {
     <div class="actions">
       <span id="doneSlot">${done ? `<span class="done-pill">${I.check} Aula concluída</span>` : `<button class="btn btn-green" id="doneBtn">${I.check} Marcar como concluída</button>`}</span>
       ${a.kind === 'apresentacao' && dl ? `<a class="btn btn-ghost" href="${esc(dl)}">${I.down} Baixar</a>` : ''}
-      ${a.kind === 'apresentacao' ? `<a class="btn btn-ghost" href="${esc(['pptx', 'ppt'].includes(ext(a)) && !isLocalHost ? 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(a.mediaUrl) : a.mediaUrl)}" target="_blank" rel="noopener">${I.ext} Tela cheia</a>` : ''}
+      ${a.kind === 'apresentacao' ? `<a class="btn btn-ghost" href="${esc(OFFICE_EXT.includes(ext(a)) && !isLocalHost ? 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(a.mediaUrl) : a.mediaUrl)}" target="_blank" rel="noopener">${I.ext} Tela cheia</a>` : ''}
       <span class="spacer"></span>
-      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos treinamentos</a>`}
+      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos cursos</a>`}
     </div>`;
   const mark = async () => {
     if (S.done.has(a.id)) return;
@@ -676,7 +687,7 @@ function renderQuiz(t, a, next, result, answers) {
       ${review ? `<button class="btn btn-ghost" id="retry">Refazer quiz</button>` : `<button class="btn btn-teal" id="send" ${answered < qs.length ? 'disabled style="cursor:not-allowed"' : ''}>Enviar respostas</button><span style="font-size:12.5px;color:var(--muted)" id="cnt">${answered} de ${qs.length} respondidas</span>`}
       ${S.done.has(a.id) ? `<span class="done-pill">${I.check} Aprovado</span>` : ''}
       <span class="spacer"></span>
-      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos treinamentos</a>`}
+      ${next ? `<a class="btn btn-primary" href="#/t/${esc(t.slug)}/${next.id}">Próxima aula ${I.next}</a>` : `<a class="btn btn-ghost" href="#/">Voltar aos cursos</a>`}
     </div>`;
   if (review) { $('#retry').onclick = () => { renderQuiz(t, a, next); st.scrollIntoView({ behavior: 'smooth' }); }; return; }
   $('#quizForm').addEventListener('change', (e) => {
@@ -724,10 +735,10 @@ function certificate(t) {
   .f b{display:block;color:#1D2939;font:700 11pt Montserrat;margin-bottom:1mm}
   @media screen{body{background:#EEF2F5}.c{margin:20px auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.12)}}</style></head>
   <body><div class="c"><div class="bar"></div><img src="${logo}" alt="Sellmed Brasil">
-  <div class="k">Certificado de conclusão</div><h1>Treinamento de Produto</h1>
+  <div class="k">Certificado de conclusão</div><h1>${esc(t.title)}</h1>
   <p>Certificamos que</p><div class="n">${esc(S.p.name)}</div>
-  <p>concluiu com êxito o treinamento</p><div class="t">${esc(t.title)}</div>
-  <p style="margin-top:3mm">${t.aulas.length} ${t.aulas.length > 1 ? 'aulas' : 'aula'}${t.aulas.some((a) => a.kind === 'quiz') ? ', incluindo aprovação nos quizzes de avaliação' : ''}.</p>
+  <p>concluiu com êxito o curso</p><div class="t">${esc(t.title)}${t.product ? ' · ' + esc(t.product) : ''}</div>
+  <p style="margin-top:3mm">${(t.modulos || []).length > 1 ? t.modulos.length + ' módulos, ' : ''}${t.aulas.length} ${t.aulas.length > 1 ? 'itens' : 'item'}${t.aulas.some((a) => a.kind === 'quiz') ? ', incluindo aprovação nos quizzes de avaliação' : ''}.</p>
   <div class="f"><div><b>${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</b>Data de emissão</div><div><b>Sellmed Brasil</b>Produtos que salvam vidas</div></div>
   <div class="bar b"></div></div><script>document.fonts.ready.then(()=>setTimeout(()=>print(),300))<\/script></body></html>`);
   w.document.close();
@@ -757,7 +768,7 @@ document.addEventListener('click', (e) => {
   showShell();
   $('#view').innerHTML = '<main style="margin-top:30px"><div class="cards"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></main>';
   try { setData(await api({ action: 'conteudo' })); route(); }
-  catch (x) { if (!store.get('trein.session')) return; $('#view').innerHTML = `<main style="margin-top:30px"><div class="empty"><b>Não foi possível carregar os treinamentos</b>${esc(x.message)}</div></main>`; }
+  catch (x) { if (!store.get('trein.session')) return; $('#view').innerHTML = `<main style="margin-top:30px"><div class="empty"><b>Não foi possível carregar os cursos</b>${esc(x.message)}</div></main>`; }
 })();
 </script>
 </body>

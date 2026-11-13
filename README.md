@@ -3,9 +3,9 @@
 Treinamentos de produto com **vídeos**, **apresentações (PPTX/PDF)** e **quizzes**, na identidade visual da Sellmed.
 
 - `index.html`: área do participante. Só entra quem tem e-mail **@sellmedbrasil.com** e senha (veja *Acesso* abaixo). Lá a pessoa assiste às aulas, responde aos quizzes, acompanha o próprio progresso e emite o certificado ao concluir.
-- `admin.html`: painel com senha. Cada treinamento é dividido em **módulos**, e cada módulo tem várias aulas (vídeos, apresentações e quizzes).
-  - **Novo treinamento** abre em abas: Dados · Vídeos · Apresentações · Quiz (já com 5 perguntas). Vídeos e apresentações aceitam vários arquivos de uma vez. Tudo é criado no primeiro módulo.
-  - Na página do treinamento: **+ Novo módulo**; em cada módulo, **Enviar arquivos** sobe vários vídeos e apresentações juntos (um por aula, reconhecidos pela extensão), além de Vídeo / Apresentação / Quiz avulsos. Módulos e aulas podem ser reordenados, e uma aula pode trocar de módulo em Editar.
+- `admin.html`: painel com senha, organizado em **cursos → módulos → arquivos**.
+  - **Criar curso:** nome (ex.: Hemodinâmica), área, descrição, produto/fabricante opcionais e os nomes dos módulos, um por linha.
+  - Na página do curso, cada módulo tem **Adicionar arquivos**: vários de uma vez, ou arrastados direto para o módulo. Aceita vídeos (MP4, WEBM, MOV), PDF, PowerPoint, Word, Excel, imagens (JPG, PNG) e links (YouTube, Vimeo, Google Drive, Google Slides). Também há **Criar quiz**. Módulos e itens podem ser renomeados, reordenados e trocados de módulo.
   - Também mostra os resultados, com exportação CSV.
 
 ## Acesso (login com senha)

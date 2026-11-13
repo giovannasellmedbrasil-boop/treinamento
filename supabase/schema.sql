@@ -138,3 +138,13 @@ select distinct a.treinamento_id, 'Módulo 1', 10 from public.aulas a
  where a.modulo_id is null and not exists (select 1 from public.modulos m where m.treinamento_id = a.treinamento_id);
 update public.aulas a set modulo_id = (select m.id from public.modulos m where m.treinamento_id = a.treinamento_id order by m.sort_order limit 1)
  where a.modulo_id is null;
+
+-- ---------- Mais formatos nos módulos (13/11/2026): Word, Excel e imagens ----------
+update storage.buckets set allowed_mime_types = array[
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel',
+  'image/jpeg', 'image/png']
+where id = 'treinamentos';

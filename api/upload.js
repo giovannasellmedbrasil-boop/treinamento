@@ -5,7 +5,7 @@ const MB = 1024 * 1024;
 const MAX_UPLOAD = (Number(process.env.MAX_UPLOAD_MB) || 50) * MB;
 const TYPES = {
   video: { folder: 'videos', exts: ['mp4', 'webm', 'mov'], max: MAX_UPLOAD },
-  apresentacao: { folder: 'apresentacoes', exts: ['pptx', 'ppt', 'pdf'], max: MAX_UPLOAD },
+  apresentacao: { folder: 'apresentacoes', exts: ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'], max: MAX_UPLOAD },
   capa: { folder: 'capas', exts: ['jpg'], max: 3 * MB },
 };
 
